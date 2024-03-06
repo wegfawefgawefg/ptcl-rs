@@ -66,6 +66,7 @@ pub struct AlphaAcceleration {
 //////////// spline
 pub struct Spline {
     pub t: f32,
+    pub strength: f32,
     pub point_1: Vec2,
     pub point_2: Vec2,
     pub point_3: Vec2,
@@ -180,11 +181,13 @@ where
         point_1: Vec2,
         point_2: Vec2,
         point_3: Vec2,
+        strength: f32,
     ) {
         let _ = self.world.insert_one(
             entity,
             Spline {
                 t: 0.0,
+                strength,
                 point_1,
                 point_2,
                 point_3,
@@ -287,7 +290,12 @@ where
             spline.t = spline.t.min(1.0).max(0.0);
             let new_pos =
                 calculate_bezier_point(spline.t, spline.point_1, spline.point_2, spline.point_3);
-            pos.pos = new_pos;
+            if spline.strength == 1.0 {
+                pos.pos = new_pos;
+            } else {
+                let delta = new_pos - pos.pos;
+                pos.pos += delta * spline.strength;
+            }
         }
     }
 }

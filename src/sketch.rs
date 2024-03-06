@@ -41,6 +41,99 @@ pub fn process_events_and_input(rl: &mut RaylibHandle, state: &mut State) {
     if rl.is_mouse_button_pressed(raylib::consts::MouseButton::MOUSE_LEFT_BUTTON) {
         let mouse_pos = rl.get_mouse_position();
 
+        let size = Vec2::new(1280.0, 720.0);
+        let center = size / 2.0;
+
+        // make some spline particles
+        let a = mouse_pos;
+
+        // explosions
+        for _ in 0..1000 {
+            let particle_type = ParticleType::Explosion;
+            let counter = rng.gen_range(50..100);
+            let pos = Vec2::new(mouse_pos.x, mouse_pos.y);
+            let max_size = 42.0;
+            let size = rng.gen_range((max_size - max_size / 4.0)..max_size);
+            let size = Vec2::new(size, size);
+            let particle = state
+                .particle_system
+                .new_particle(particle_type, counter, pos, size);
+
+            let offset = 75.0;
+
+            let b = Vec2::new(
+                a.x + rng.gen_range(-offset..offset),
+                a.y + rng.gen_range(-offset..offset),
+            );
+            let c = center;
+
+            state.particle_system.add_spline(
+                particle,
+                Vec2::new(a.x, a.y),
+                Vec2::new(b.x, b.y),
+                Vec2::new(c.x, c.y),
+                1.0,
+            );
+            state.particle_system.add_alpha(particle, 0.0);
+            state.particle_system.add_alpha_velocity(particle, 0.005);
+            state
+                .particle_system
+                .add_spline_velocity(particle, rng.gen_range(0.01..0.02));
+            state
+                .particle_system
+                .add_spline_acceleration(particle, rng.gen_range(-0.0005..0.000));
+
+            state
+                .particle_system
+                .add_size_velocity(particle, rng.gen_range(-0.5..0.0));
+        }
+
+        for _ in 0..500 {
+            let particle_type = ParticleType::Smoke;
+            let counter = rng.gen_range(50..100);
+            let pos = Vec2::new(mouse_pos.x, mouse_pos.y);
+            let max_size = 16.0;
+            let size = rng.gen_range(8.0..max_size);
+            let size = Vec2::new(size, size);
+            let particle = state
+                .particle_system
+                .new_particle(particle_type, counter, pos, size);
+
+            let offset = 100.0;
+
+            let b = Vec2::new(
+                center.x + rng.gen_range(-offset..offset),
+                center.y + rng.gen_range(-offset..offset),
+            );
+            let c = center;
+
+            state.particle_system.add_spline(
+                particle,
+                Vec2::new(a.x, a.y),
+                Vec2::new(b.x, b.y),
+                Vec2::new(c.x, c.y),
+                0.1,
+            );
+            state.particle_system.add_alpha(particle, 0.05);
+            state.particle_system.add_alpha_velocity(particle, -0.0008);
+            state
+                .particle_system
+                .add_spline_velocity(particle, rng.gen_range(0.01..0.02));
+            state
+                .particle_system
+                .add_spline_acceleration(particle, rng.gen_range(-0.0005..0.000));
+
+            state
+                .particle_system
+                .add_size_velocity(particle, rng.gen_range(0.0..2.0));
+            state
+                .particle_system
+                .add_velocity(particle, Vec2::new(0.0, -10.0));
+            state
+                .particle_system
+                .add_acceleration(particle, Vec2::new(0.0, 0.01));
+        }
+
         for _ in 0..100 {
             let particle_type = ParticleType::Explosion;
             let counter = rng.gen_range(8..32);
@@ -59,7 +152,7 @@ pub fn process_events_and_input(rl: &mut RaylibHandle, state: &mut State) {
             state.particle_system.add_velocity(particle, vel);
             state
                 .particle_system
-                .add_acceleration(particle, Vec2::new(0.0, 0.1));
+                .add_acceleration(particle, Vec2::new(0.0, 0.2));
         }
     }
 }
