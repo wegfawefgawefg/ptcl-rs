@@ -1,10 +1,6 @@
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use glam::Vec2;
-use ptcl_rs::core::{
-    Acceleration, Alpha, AlphaVelocity, Counter, DrawLayer, ParticleSystem, ParticleTypeTrait,
-    Position, Rotation, RotationAcceleration, RotationVelocity, Size, SizeAcceleration,
-    SizeVelocity, Spline, SplineAcceleration, SplineVelocity, Velocity,
-};
+use ptcl_rs::core::{ParticleSpawn, ParticleSystem, ParticleTypeTrait, SplineState};
 use std::hint::black_box;
 
 #[derive(Clone, Copy)]
@@ -16,18 +12,6 @@ enum BenchType {
 
 impl ParticleTypeTrait for BenchType {}
 
-type BurstBundle = (
-    BenchType,
-    Counter,
-    Position,
-    Size,
-    Rotation,
-    DrawLayer,
-    Alpha,
-    Velocity,
-    Acceleration,
-);
-
 fn seed_steady_system(count: u32) -> ParticleSystem<BenchType> {
     let mut ps = ParticleSystem::new();
     ps.reserve_particles(count);
@@ -38,64 +22,40 @@ fn seed_steady_system(count: u32) -> ParticleSystem<BenchType> {
 
         match i % 3 {
             0 => {
-                ps.world.spawn((
-                    BenchType::Burst,
-                    Counter { counter: 20_000 },
-                    Position { pos: base },
-                    Size { size },
-                    Rotation { rot: 0.0 },
-                    DrawLayer { draw_layer: 0 },
-                    Alpha { alpha: 1.0 },
-                    Velocity {
-                        vel: Vec2::new(0.05, -0.02),
-                    },
-                    Acceleration {
-                        acc: Vec2::new(0.0, 0.0005),
-                    },
-                ));
+                ps.spawn(
+                    ParticleSpawn::new(BenchType::Burst, 20_000, base, size)
+                        .with_velocity(Vec2::new(0.05, -0.02))
+                        .with_acceleration(Vec2::new(0.0, 0.0005)),
+                );
             }
             1 => {
-                ps.world.spawn((
-                    BenchType::Smoke,
-                    Counter { counter: 20_000 },
-                    Position { pos: base },
-                    Size { size },
-                    Rotation { rot: 0.0 },
-                    DrawLayer { draw_layer: 0 },
-                    Alpha { alpha: 0.8 },
-                    AlphaVelocity { alpha_vel: -0.0001 },
-                    Velocity {
-                        vel: Vec2::new(0.02, -0.03),
-                    },
-                    Acceleration {
-                        acc: Vec2::new(0.0, 0.0002),
-                    },
-                    SizeVelocity { size_vel: 0.02 },
-                    SizeAcceleration { size_acc: -0.0001 },
-                    RotationVelocity { rot_vel: 0.15 },
-                    RotationAcceleration { rot_acc: -0.0002 },
-                ));
+                ps.spawn(
+                    ParticleSpawn::new(BenchType::Smoke, 20_000, base, size)
+                        .with_alpha(0.8)
+                        .with_alpha_velocity(-0.0001)
+                        .with_velocity(Vec2::new(0.02, -0.03))
+                        .with_acceleration(Vec2::new(0.0, 0.0002))
+                        .with_size_velocity(0.02)
+                        .with_size_acceleration(-0.0001)
+                        .with_rotation_velocity(0.15)
+                        .with_rotation_acceleration(-0.0002),
+                );
             }
             _ => {
-                ps.world.spawn((
-                    BenchType::Spline,
-                    Counter { counter: 20_000 },
-                    Position { pos: base },
-                    Size { size },
-                    Rotation { rot: 0.0 },
-                    DrawLayer { draw_layer: 0 },
-                    Alpha { alpha: 0.4 },
-                    AlphaVelocity { alpha_vel: 0.0002 },
-                    Spline {
-                        t: 0.0,
-                        strength: 0.35,
-                        point_1: base,
-                        point_2: base + Vec2::new(30.0, -40.0),
-                        point_3: base + Vec2::new(80.0, 30.0),
-                    },
-                    SplineVelocity { tvel: 0.008 },
-                    SplineAcceleration { tacc: -0.00001 },
-                ));
+                ps.spawn(
+                    ParticleSpawn::new(BenchType::Spline, 20_000, base, size)
+                        .with_alpha(0.4)
+                        .with_alpha_velocity(0.0002)
+                        .with_spline(SplineState {
+                            t: 0.0,
+                            strength: 0.35,
+                            point_1: base,
+                            point_2: base + Vec2::new(30.0, -40.0),
+                            point_3: base + Vec2::new(80.0, 30.0),
+                        })
+                        .with_spline_velocity(0.008)
+                        .with_spline_acceleration(-0.00001),
+                );
             }
         }
     }
@@ -109,55 +69,27 @@ fn seed_burst_system() -> ParticleSystem<BenchType> {
 
     for i in 0..100_000u32 {
         let pos = Vec2::new((i % 1024) as f32, ((i / 1024) % 1024) as f32);
-        ps.world.spawn((
-            BenchType::Burst,
-            Counter {
-                counter: 3 + (i % 4),
-            },
-            Position { pos },
-            Size {
-                size: Vec2::splat(4.0),
-            },
-            Rotation { rot: 0.0 },
-            DrawLayer { draw_layer: 0 },
-            Alpha { alpha: 1.0 },
-            Velocity {
-                vel: Vec2::new(0.1, -0.08),
-            },
-            Acceleration {
-                acc: Vec2::new(0.0, 0.001),
-            },
-        ));
+        ps.spawn(
+            ParticleSpawn::new(BenchType::Burst, 3 + (i % 4), pos, Vec2::splat(4.0))
+                .with_velocity(Vec2::new(0.1, -0.08))
+                .with_acceleration(Vec2::new(0.0, 0.001)),
+        );
     }
 
     ps
 }
 
-fn build_burst_bundles(count: u32) -> Vec<BurstBundle> {
-    let mut bundles = Vec::with_capacity(count as usize);
+fn build_burst_spawns(count: u32) -> Vec<ParticleSpawn<BenchType>> {
+    let mut spawns = Vec::with_capacity(count as usize);
     for i in 0..count {
         let pos = Vec2::new((i % 1024) as f32, ((i / 1024) % 1024) as f32);
-        bundles.push((
-            BenchType::Burst,
-            Counter {
-                counter: 3 + (i % 4),
-            },
-            Position { pos },
-            Size {
-                size: Vec2::splat(4.0),
-            },
-            Rotation { rot: 0.0 },
-            DrawLayer { draw_layer: 0 },
-            Alpha { alpha: 1.0 },
-            Velocity {
-                vel: Vec2::new(0.1, -0.08),
-            },
-            Acceleration {
-                acc: Vec2::new(0.0, 0.001),
-            },
-        ));
+        spawns.push(
+            ParticleSpawn::new(BenchType::Burst, 3 + (i % 4), pos, Vec2::splat(4.0))
+                .with_velocity(Vec2::new(0.1, -0.08))
+                .with_acceleration(Vec2::new(0.0, 0.001)),
+        );
     }
-    bundles
+    spawns
 }
 
 fn bench_step_steady_10k(c: &mut Criterion) {
@@ -165,7 +97,7 @@ fn bench_step_steady_10k(c: &mut Criterion) {
         let mut ps = seed_steady_system(10_000);
         b.iter(|| {
             ps.step();
-            black_box(ps.world.len());
+            black_box(ps.len());
         });
     });
 }
@@ -175,7 +107,7 @@ fn bench_step_steady_50k(c: &mut Criterion) {
         let mut ps = seed_steady_system(50_000);
         b.iter(|| {
             ps.step();
-            black_box(ps.world.len());
+            black_box(ps.len());
         });
     });
 }
@@ -188,7 +120,7 @@ fn bench_burst_100k_lifecycle(c: &mut Criterion) {
                 for _ in 0..8 {
                     ps.step();
                 }
-                black_box(ps.world.len());
+                black_box(ps.len());
             },
             BatchSize::SmallInput,
         );
@@ -198,14 +130,14 @@ fn bench_burst_100k_lifecycle(c: &mut Criterion) {
 fn bench_spawn_50k_single(c: &mut Criterion) {
     c.bench_function("spawn_50k_single", |b| {
         b.iter_batched(
-            || build_burst_bundles(50_000),
-            |bundles| {
+            || build_burst_spawns(50_000),
+            |spawns| {
                 let mut ps = ParticleSystem::<BenchType>::new();
-                ps.reserve_bundle::<BurstBundle>(bundles.len() as u32);
-                for bundle in bundles {
-                    ps.world.spawn(bundle);
+                ps.reserve_particles(spawns.len() as u32);
+                for spawn in spawns {
+                    ps.spawn(spawn);
                 }
-                black_box(ps.world.len());
+                black_box(ps.len());
             },
             BatchSize::SmallInput,
         );
@@ -215,12 +147,12 @@ fn bench_spawn_50k_single(c: &mut Criterion) {
 fn bench_spawn_50k_batch(c: &mut Criterion) {
     c.bench_function("spawn_50k_batch", |b| {
         b.iter_batched(
-            || build_burst_bundles(50_000),
-            |bundles| {
+            || build_burst_spawns(50_000),
+            |spawns| {
                 let mut ps = ParticleSystem::<BenchType>::new();
-                ps.reserve_bundle::<BurstBundle>(bundles.len() as u32);
-                ps.spawn_batch(bundles);
-                black_box(ps.world.len());
+                ps.reserve_particles(spawns.len() as u32);
+                ps.spawn_batch(spawns);
+                black_box(ps.len());
             },
             BatchSize::SmallInput,
         );

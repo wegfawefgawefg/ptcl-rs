@@ -2,76 +2,11 @@ use glam::Vec2;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use raylib::prelude::*;
 
-use ptcl_rs::core::{
-    Acceleration, Alpha, AlphaVelocity, Counter, DrawLayer, ParticleSystem, Position, Rotation,
-    RotationAcceleration, RotationVelocity, Size, SizeAcceleration, SizeVelocity, Spline,
-    SplineAcceleration, SplineVelocity, Velocity,
-};
+use ptcl_rs::core::{ParticleSpawn, ParticleSystem, SplineState};
 
 use crate::demo_particles::{get_sample_region, ParticleType};
 
 pub const FRAMES_PER_SECOND: u32 = 60;
-
-type ExplosionSplineBundle = (
-    ParticleType,
-    Counter,
-    Position,
-    Size,
-    Rotation,
-    DrawLayer,
-    Alpha,
-    AlphaVelocity,
-    Spline,
-    SplineVelocity,
-    SplineAcceleration,
-    SizeVelocity,
-);
-
-type SmokeSplineBundle = (
-    ParticleType,
-    Counter,
-    Position,
-    Size,
-    Rotation,
-    DrawLayer,
-    Alpha,
-    AlphaVelocity,
-    Velocity,
-    Acceleration,
-    SizeVelocity,
-    Spline,
-    SplineVelocity,
-    SplineAcceleration,
-);
-
-type ExplosionBallisticBundle = (
-    ParticleType,
-    Counter,
-    Position,
-    Size,
-    Rotation,
-    DrawLayer,
-    Alpha,
-    Velocity,
-    Acceleration,
-);
-
-type EmitterSmokeBundle = (
-    ParticleType,
-    Counter,
-    Position,
-    Size,
-    Rotation,
-    DrawLayer,
-    Alpha,
-    AlphaVelocity,
-    Velocity,
-    Acceleration,
-    SizeVelocity,
-    SizeAcceleration,
-    RotationVelocity,
-    RotationAcceleration,
-);
 
 pub struct State {
     pub running: bool,
@@ -81,11 +16,8 @@ pub struct State {
     pub particle_system: ParticleSystem<ParticleType>,
     pub particle_effects_texture: Texture2D,
     rng: SmallRng,
-    click_explosion_spline_batch: Vec<ExplosionSplineBundle>,
-    click_smoke_spline_batch: Vec<SmokeSplineBundle>,
-    click_explosion_ballistic_batch: Vec<ExplosionBallisticBundle>,
-    emitter_explosion_batch: Vec<ExplosionBallisticBundle>,
-    emitter_smoke_batch: Vec<EmitterSmokeBundle>,
+    click_batch: Vec<ParticleSpawn<ParticleType>>,
+    emitter_batch: Vec<ParticleSpawn<ParticleType>>,
 }
 
 impl State {
@@ -96,10 +28,6 @@ impl State {
 
         let mut particle_system = ParticleSystem::new();
         particle_system.reserve_particles(120_000);
-        particle_system.reserve_bundle::<ExplosionSplineBundle>(120_000);
-        particle_system.reserve_bundle::<SmokeSplineBundle>(120_000);
-        particle_system.reserve_bundle::<ExplosionBallisticBundle>(120_000);
-        particle_system.reserve_bundle::<EmitterSmokeBundle>(120_000);
 
         Self {
             running: true,
@@ -109,11 +37,8 @@ impl State {
             particle_system,
             particle_effects_texture,
             rng: SmallRng::from_os_rng(),
-            click_explosion_spline_batch: Vec::with_capacity(1_000),
-            click_smoke_spline_batch: Vec::with_capacity(500),
-            click_explosion_ballistic_batch: Vec::with_capacity(100),
-            emitter_explosion_batch: Vec::with_capacity(24),
-            emitter_smoke_batch: Vec::with_capacity(12),
+            click_batch: Vec::with_capacity(1_600),
+            emitter_batch: Vec::with_capacity(64),
         }
     }
 }
@@ -141,14 +66,9 @@ pub fn draw(state: &mut State, d: &mut RaylibTextureMode<RaylibDrawHandle>) {
 }
 
 pub fn draw_particles(state: &State, d: &mut RaylibTextureMode<RaylibDrawHandle>) {
-    for (particle_type, counter, pos, size, rot, alpha) in state
-        .particle_system
-        .world
-        .query::<(&ParticleType, &Counter, &Position, &Size, &Rotation, &Alpha)>()
-        .iter()
-    {
-        let sample_region = get_sample_region(*particle_type, counter.counter);
-        let color = Color::new(255, 255, 255, (alpha.alpha * 255.0) as u8);
+    for particle in &state.particle_system.particles {
+        let sample_region = get_sample_region(particle.particle_type, particle.counter);
+        let color = Color::new(255, 255, 255, (particle.alpha * 255.0) as u8);
         d.draw_texture_pro(
             &state.particle_effects_texture,
             Rectangle::new(
@@ -157,9 +77,14 @@ pub fn draw_particles(state: &State, d: &mut RaylibTextureMode<RaylibDrawHandle>
                 sample_region.size.x as f32,
                 sample_region.size.y as f32,
             ),
-            Rectangle::new(pos.pos.x, pos.pos.y, size.size.x, size.size.y),
-            Vector2::new(size.size.x / 2.0, size.size.y / 2.0),
-            rot.rot,
+            Rectangle::new(
+                particle.pos.x,
+                particle.pos.y,
+                particle.size.x,
+                particle.size.y,
+            ),
+            Vector2::new(particle.size.x / 2.0, particle.size.y / 2.0),
+            particle.rotation,
             color,
         );
     }
@@ -169,9 +94,7 @@ fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
     let a = Vec2::new(mouse_pos.x, mouse_pos.y);
     let center = state.sim_dims / 2.0;
 
-    state.click_explosion_spline_batch.clear();
-    state.click_smoke_spline_batch.clear();
-    state.click_explosion_ballistic_batch.clear();
+    state.click_batch.clear();
 
     for _ in 0..1_000 {
         let counter = state.rng.random_range(50..100);
@@ -187,32 +110,21 @@ fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
             a.y + state.rng.random_range(-offset..offset),
         );
 
-        state.click_explosion_spline_batch.push((
-            ParticleType::Explosion,
-            Counter { counter },
-            Position { pos: a },
-            Size { size },
-            Rotation { rot: 0.0 },
-            DrawLayer { draw_layer: 0 },
-            Alpha { alpha: 0.0 },
-            AlphaVelocity { alpha_vel: 0.005 },
-            Spline {
-                t: 0.0,
-                strength: 1.0,
-                point_1: a,
-                point_2: b,
-                point_3: center,
-            },
-            SplineVelocity {
-                tvel: state.rng.random_range(0.01..0.02),
-            },
-            SplineAcceleration {
-                tacc: state.rng.random_range(-0.0005..0.000),
-            },
-            SizeVelocity {
-                size_vel: state.rng.random_range(-0.5..0.0),
-            },
-        ));
+        state.click_batch.push(
+            ParticleSpawn::new(ParticleType::Explosion, counter, a, size)
+                .with_alpha(0.0)
+                .with_alpha_velocity(0.005)
+                .with_spline(SplineState {
+                    t: 0.0,
+                    strength: 1.0,
+                    point_1: a,
+                    point_2: b,
+                    point_3: center,
+                })
+                .with_spline_velocity(state.rng.random_range(0.01..0.02))
+                .with_spline_acceleration(state.rng.random_range(-0.0005..0.000))
+                .with_size_velocity(state.rng.random_range(-0.5..0.0)),
+        );
     }
 
     for _ in 0..500 {
@@ -227,38 +139,23 @@ fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
             center.y + state.rng.random_range(-offset..offset),
         );
 
-        state.click_smoke_spline_batch.push((
-            ParticleType::Smoke,
-            Counter { counter },
-            Position { pos: a },
-            Size { size },
-            Rotation { rot: 0.0 },
-            DrawLayer { draw_layer: 0 },
-            Alpha { alpha: 0.05 },
-            AlphaVelocity { alpha_vel: -0.0008 },
-            Velocity {
-                vel: Vec2::new(0.0, -10.0),
-            },
-            Acceleration {
-                acc: Vec2::new(0.0, 0.01),
-            },
-            SizeVelocity {
-                size_vel: state.rng.random_range(0.0..2.0),
-            },
-            Spline {
-                t: 0.0,
-                strength: 0.1,
-                point_1: a,
-                point_2: b,
-                point_3: center,
-            },
-            SplineVelocity {
-                tvel: state.rng.random_range(0.01..0.02),
-            },
-            SplineAcceleration {
-                tacc: state.rng.random_range(-0.0005..0.000),
-            },
-        ));
+        state.click_batch.push(
+            ParticleSpawn::new(ParticleType::Smoke, counter, a, size)
+                .with_alpha(0.05)
+                .with_alpha_velocity(-0.0008)
+                .with_velocity(Vec2::new(0.0, -10.0))
+                .with_acceleration(Vec2::new(0.0, 0.01))
+                .with_size_velocity(state.rng.random_range(0.0..2.0))
+                .with_spline(SplineState {
+                    t: 0.0,
+                    strength: 0.1,
+                    point_1: a,
+                    point_2: b,
+                    point_3: center,
+                })
+                .with_spline_velocity(state.rng.random_range(0.01..0.02))
+                .with_spline_acceleration(state.rng.random_range(-0.0005..0.000)),
+        );
     }
 
     for _ in 0..100 {
@@ -273,33 +170,16 @@ fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
             state.rng.random_range(-mag..mag),
         );
 
-        state.click_explosion_ballistic_batch.push((
-            ParticleType::Explosion,
-            Counter { counter },
-            Position { pos: a },
-            Size { size },
-            Rotation { rot: 0.0 },
-            DrawLayer { draw_layer: 0 },
-            Alpha { alpha: 1.0 },
-            Velocity { vel },
-            Acceleration {
-                acc: Vec2::new(0.0, 0.2),
-            },
-        ));
+        state.click_batch.push(
+            ParticleSpawn::new(ParticleType::Explosion, counter, a, size)
+                .with_velocity(vel)
+                .with_acceleration(Vec2::new(0.0, 0.2)),
+        );
     }
 
-    flush_batch(
-        &mut state.particle_system,
-        &mut state.click_explosion_spline_batch,
-    );
-    flush_batch(
-        &mut state.particle_system,
-        &mut state.click_smoke_spline_batch,
-    );
-    flush_batch(
-        &mut state.particle_system,
-        &mut state.click_explosion_ballistic_batch,
-    );
+    state
+        .particle_system
+        .spawn_batch(state.click_batch.drain(..));
 }
 
 fn spawn_rotating_emitters(state: &mut State) {
@@ -309,8 +189,7 @@ fn spawn_rotating_emitters(state: &mut State) {
     center.y += center.y / 2.0;
     let offset = center / 8.0;
 
-    state.emitter_explosion_batch.clear();
-    state.emitter_smoke_batch.clear();
+    state.emitter_batch.clear();
 
     for i in 0..3 {
         let rot = glam::Mat2::from_angle(angle + i as f32 * 90.0);
@@ -331,19 +210,12 @@ fn spawn_rotating_emitters(state: &mut State) {
                 state.rng.random_range(-mag..mag),
             );
 
-            state.emitter_explosion_batch.push((
-                ParticleType::Explosion,
-                Counter { counter },
-                Position { pos: rect_center },
-                Size { size },
-                Rotation { rot: 0.0 },
-                DrawLayer { draw_layer: 0 },
-                Alpha { alpha: 1.0 },
-                Velocity { vel },
-                Acceleration {
-                    acc: Vec2::new(0.0, 0.1),
-                },
-            ));
+            state.emitter_batch.push(
+                ParticleSpawn::new(ParticleType::Explosion, counter, rect_center, size)
+                    .with_alpha_velocity(-0.05)
+                    .with_velocity(vel)
+                    .with_acceleration(Vec2::new(0.0, 0.1)),
+            );
         }
 
         for _ in 0..4 {
@@ -360,43 +232,21 @@ fn spawn_rotating_emitters(state: &mut State) {
             );
 
             let spin_mag = 2.0;
-            state.emitter_smoke_batch.push((
-                ParticleType::Smoke,
-                Counter { counter },
-                Position { pos: rect_center },
-                Size { size },
-                Rotation { rot: 0.0 },
-                DrawLayer { draw_layer: 0 },
-                Alpha { alpha: 0.1 },
-                AlphaVelocity { alpha_vel: -0.001 },
-                Velocity { vel },
-                Acceleration {
-                    acc: Vec2::new(0.0, -0.1),
-                },
-                SizeVelocity { size_vel: 1.0 },
-                SizeAcceleration { size_acc: -0.01 },
-                RotationVelocity {
-                    rot_vel: state.rng.random_range(-spin_mag..spin_mag),
-                },
-                RotationAcceleration { rot_acc: -0.01 },
-            ));
+            state.emitter_batch.push(
+                ParticleSpawn::new(ParticleType::Smoke, counter, rect_center, size)
+                    .with_alpha(0.1)
+                    .with_alpha_velocity(-0.001)
+                    .with_velocity(vel)
+                    .with_acceleration(Vec2::new(0.0, -0.1))
+                    .with_size_velocity(1.0)
+                    .with_size_acceleration(-0.01)
+                    .with_rotation_velocity(state.rng.random_range(-spin_mag..spin_mag))
+                    .with_rotation_acceleration(-0.01),
+            );
         }
     }
 
-    flush_batch(
-        &mut state.particle_system,
-        &mut state.emitter_explosion_batch,
-    );
-    flush_batch(&mut state.particle_system, &mut state.emitter_smoke_batch);
-}
-
-fn flush_batch<B>(particle_system: &mut ParticleSystem<ParticleType>, batch: &mut Vec<B>)
-where
-    B: hecs::Bundle + 'static,
-{
-    if batch.is_empty() {
-        return;
-    }
-
-    particle_system.spawn_batch(batch.drain(..));
+    state
+        .particle_system
+        .spawn_batch(state.emitter_batch.drain(..));
 }

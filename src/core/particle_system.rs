@@ -1,63 +1,21 @@
 use glam::Vec2;
-use hecs::World;
 
-pub struct Counter {
-    pub counter: u32,
-}
+pub trait ParticleTypeTrait: Copy + Send + Sync + 'static {}
 
-pub struct DrawLayer {
-    pub draw_layer: u32,
-}
+const HAS_VELOCITY: u16 = 1 << 0;
+const HAS_ACCELERATION: u16 = 1 << 1;
+const HAS_SIZE_VELOCITY: u16 = 1 << 2;
+const HAS_SIZE_ACCELERATION: u16 = 1 << 3;
+const HAS_ROTATION_VELOCITY: u16 = 1 << 4;
+const HAS_ROTATION_ACCELERATION: u16 = 1 << 5;
+const HAS_ALPHA_VELOCITY: u16 = 1 << 6;
+const HAS_ALPHA_ACCELERATION: u16 = 1 << 7;
+const HAS_SPLINE: u16 = 1 << 8;
+const HAS_SPLINE_VELOCITY: u16 = 1 << 9;
+const HAS_SPLINE_ACCELERATION: u16 = 1 << 10;
 
-pub struct Position {
-    pub pos: Vec2,
-}
-
-pub struct Velocity {
-    pub vel: Vec2,
-}
-
-pub struct Acceleration {
-    pub acc: Vec2,
-}
-
-pub struct Size {
-    pub size: Vec2,
-}
-
-pub struct SizeVelocity {
-    pub size_vel: f32,
-}
-
-pub struct SizeAcceleration {
-    pub size_acc: f32,
-}
-
-pub struct Rotation {
-    pub rot: f32,
-}
-
-pub struct RotationVelocity {
-    pub rot_vel: f32,
-}
-
-pub struct RotationAcceleration {
-    pub rot_acc: f32,
-}
-
-pub struct Alpha {
-    pub alpha: f32,
-}
-
-pub struct AlphaVelocity {
-    pub alpha_vel: f32,
-}
-
-pub struct AlphaAcceleration {
-    pub alpha_acc: f32,
-}
-
-pub struct Spline {
+#[derive(Clone, Copy, Debug)]
+pub struct SplineState {
     pub t: f32,
     pub strength: f32,
     pub point_1: Vec2,
@@ -65,245 +23,415 @@ pub struct Spline {
     pub point_3: Vec2,
 }
 
-pub struct SplineVelocity {
-    pub tvel: f32,
+#[derive(Clone, Copy, Debug)]
+pub struct ParticleSpawn<T>
+where
+    T: ParticleTypeTrait,
+{
+    pub particle_type: T,
+    pub counter: u32,
+    pub pos: Vec2,
+    pub size: Vec2,
+    pub rotation: f32,
+    pub draw_layer: u32,
+    pub alpha: f32,
+    pub velocity: Option<Vec2>,
+    pub acceleration: Option<Vec2>,
+    pub size_velocity: Option<f32>,
+    pub size_acceleration: Option<f32>,
+    pub rotation_velocity: Option<f32>,
+    pub rotation_acceleration: Option<f32>,
+    pub alpha_velocity: Option<f32>,
+    pub alpha_acceleration: Option<f32>,
+    pub spline: Option<SplineState>,
+    pub spline_velocity: Option<f32>,
+    pub spline_acceleration: Option<f32>,
 }
 
-pub struct SplineAcceleration {
-    pub tacc: f32,
+impl<T> ParticleSpawn<T>
+where
+    T: ParticleTypeTrait,
+{
+    pub fn new(particle_type: T, counter: u32, pos: Vec2, size: Vec2) -> Self {
+        Self {
+            particle_type,
+            counter,
+            pos,
+            size,
+            rotation: 0.0,
+            draw_layer: 0,
+            alpha: 1.0,
+            velocity: None,
+            acceleration: None,
+            size_velocity: None,
+            size_acceleration: None,
+            rotation_velocity: None,
+            rotation_acceleration: None,
+            alpha_velocity: None,
+            alpha_acceleration: None,
+            spline: None,
+            spline_velocity: None,
+            spline_acceleration: None,
+        }
+    }
+
+    pub fn with_rotation(mut self, rotation: f32) -> Self {
+        self.rotation = rotation;
+        self
+    }
+
+    pub fn with_draw_layer(mut self, draw_layer: u32) -> Self {
+        self.draw_layer = draw_layer;
+        self
+    }
+
+    pub fn with_alpha(mut self, alpha: f32) -> Self {
+        self.alpha = alpha;
+        self
+    }
+
+    pub fn with_velocity(mut self, velocity: Vec2) -> Self {
+        self.velocity = Some(velocity);
+        self
+    }
+
+    pub fn with_acceleration(mut self, acceleration: Vec2) -> Self {
+        self.acceleration = Some(acceleration);
+        self
+    }
+
+    pub fn with_size_velocity(mut self, size_velocity: f32) -> Self {
+        self.size_velocity = Some(size_velocity);
+        self
+    }
+
+    pub fn with_size_acceleration(mut self, size_acceleration: f32) -> Self {
+        self.size_acceleration = Some(size_acceleration);
+        self
+    }
+
+    pub fn with_rotation_velocity(mut self, rotation_velocity: f32) -> Self {
+        self.rotation_velocity = Some(rotation_velocity);
+        self
+    }
+
+    pub fn with_rotation_acceleration(mut self, rotation_acceleration: f32) -> Self {
+        self.rotation_acceleration = Some(rotation_acceleration);
+        self
+    }
+
+    pub fn with_alpha_velocity(mut self, alpha_velocity: f32) -> Self {
+        self.alpha_velocity = Some(alpha_velocity);
+        self
+    }
+
+    pub fn with_alpha_acceleration(mut self, alpha_acceleration: f32) -> Self {
+        self.alpha_acceleration = Some(alpha_acceleration);
+        self
+    }
+
+    pub fn with_spline(mut self, spline: SplineState) -> Self {
+        self.spline = Some(spline);
+        self
+    }
+
+    pub fn with_spline_velocity(mut self, spline_velocity: f32) -> Self {
+        self.spline_velocity = Some(spline_velocity);
+        self
+    }
+
+    pub fn with_spline_acceleration(mut self, spline_acceleration: f32) -> Self {
+        self.spline_acceleration = Some(spline_acceleration);
+        self
+    }
 }
 
-pub trait ParticleTypeTrait: Sync {}
+#[derive(Clone, Copy, Debug)]
+pub struct Particle<T>
+where
+    T: ParticleTypeTrait,
+{
+    pub particle_type: T,
+    pub counter: u32,
+    pub pos: Vec2,
+    pub size: Vec2,
+    pub rotation: f32,
+    pub draw_layer: u32,
+    pub alpha: f32,
+    pub velocity: Vec2,
+    pub acceleration: Vec2,
+    pub size_velocity: f32,
+    pub size_acceleration: f32,
+    pub rotation_velocity: f32,
+    pub rotation_acceleration: f32,
+    pub alpha_velocity: f32,
+    pub alpha_acceleration: f32,
+    pub spline_t: f32,
+    pub spline_strength: f32,
+    pub spline_point_1: Vec2,
+    pub spline_point_2: Vec2,
+    pub spline_point_3: Vec2,
+    pub spline_velocity: f32,
+    pub spline_acceleration: f32,
+    flags: u16,
+}
+
+impl<T> Particle<T>
+where
+    T: ParticleTypeTrait,
+{
+    fn from_spawn(spawn: ParticleSpawn<T>) -> Self {
+        let mut flags = 0u16;
+
+        let velocity = if let Some(v) = spawn.velocity {
+            flags |= HAS_VELOCITY;
+            v
+        } else {
+            Vec2::ZERO
+        };
+
+        let acceleration = if let Some(v) = spawn.acceleration {
+            flags |= HAS_ACCELERATION;
+            v
+        } else {
+            Vec2::ZERO
+        };
+
+        let size_velocity = if let Some(v) = spawn.size_velocity {
+            flags |= HAS_SIZE_VELOCITY;
+            v
+        } else {
+            0.0
+        };
+
+        let size_acceleration = if let Some(v) = spawn.size_acceleration {
+            flags |= HAS_SIZE_ACCELERATION;
+            v
+        } else {
+            0.0
+        };
+
+        let rotation_velocity = if let Some(v) = spawn.rotation_velocity {
+            flags |= HAS_ROTATION_VELOCITY;
+            v
+        } else {
+            0.0
+        };
+
+        let rotation_acceleration = if let Some(v) = spawn.rotation_acceleration {
+            flags |= HAS_ROTATION_ACCELERATION;
+            v
+        } else {
+            0.0
+        };
+
+        let alpha_velocity = if let Some(v) = spawn.alpha_velocity {
+            flags |= HAS_ALPHA_VELOCITY;
+            v
+        } else {
+            0.0
+        };
+
+        let alpha_acceleration = if let Some(v) = spawn.alpha_acceleration {
+            flags |= HAS_ALPHA_ACCELERATION;
+            v
+        } else {
+            0.0
+        };
+
+        let (spline_t, spline_strength, spline_point_1, spline_point_2, spline_point_3) =
+            if let Some(spline) = spawn.spline {
+                flags |= HAS_SPLINE;
+                (
+                    spline.t,
+                    spline.strength,
+                    spline.point_1,
+                    spline.point_2,
+                    spline.point_3,
+                )
+            } else {
+                (0.0, 0.0, Vec2::ZERO, Vec2::ZERO, Vec2::ZERO)
+            };
+
+        let spline_velocity = if let Some(v) = spawn.spline_velocity {
+            flags |= HAS_SPLINE_VELOCITY;
+            v
+        } else {
+            0.0
+        };
+
+        let spline_acceleration = if let Some(v) = spawn.spline_acceleration {
+            flags |= HAS_SPLINE_ACCELERATION;
+            v
+        } else {
+            0.0
+        };
+
+        Self {
+            particle_type: spawn.particle_type,
+            counter: spawn.counter,
+            pos: spawn.pos,
+            size: spawn.size,
+            rotation: spawn.rotation,
+            draw_layer: spawn.draw_layer,
+            alpha: spawn.alpha,
+            velocity,
+            acceleration,
+            size_velocity,
+            size_acceleration,
+            rotation_velocity,
+            rotation_acceleration,
+            alpha_velocity,
+            alpha_acceleration,
+            spline_t,
+            spline_strength,
+            spline_point_1,
+            spline_point_2,
+            spline_point_3,
+            spline_velocity,
+            spline_acceleration,
+            flags,
+        }
+    }
+
+    #[inline(always)]
+    fn has(&self, mask: u16) -> bool {
+        (self.flags & mask) != 0
+    }
+}
 
 pub struct ParticleSystem<T>
 where
-    T: ParticleTypeTrait + Send + Sync + 'static,
+    T: ParticleTypeTrait,
 {
-    pub world: hecs::World,
-    expired_entities: Vec<hecs::Entity>,
-    _marker: std::marker::PhantomData<T>,
+    pub particles: Vec<Particle<T>>,
 }
 
 impl<T> ParticleSystem<T>
 where
-    T: ParticleTypeTrait + Send + Sync + 'static,
+    T: ParticleTypeTrait,
 {
     pub fn new() -> Self {
         Self {
-            world: World::new(),
-            expired_entities: Vec::new(),
-            _marker: std::marker::PhantomData,
+            particles: Vec::new(),
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.particles.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.particles.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.particles.clear();
     }
 
     pub fn reserve_particles(&mut self, additional: u32) {
-        self.world
-            .reserve::<(T, Counter, Position, Size, Rotation, DrawLayer, Alpha)>(additional);
+        self.particles.reserve(additional as usize);
     }
 
-    pub fn reserve_bundle<B>(&mut self, additional: u32)
+    pub fn reserve_bundle<B>(&mut self, additional: u32) {
+        let _ = std::marker::PhantomData::<B>;
+        self.reserve_particles(additional);
+    }
+
+    pub fn new_particle(&mut self, particle_type: T, counter: u32, pos: Vec2, size: Vec2) -> usize {
+        self.spawn(ParticleSpawn::new(particle_type, counter, pos, size))
+    }
+
+    pub fn spawn(&mut self, spawn: ParticleSpawn<T>) -> usize {
+        let id = self.particles.len();
+        self.particles.push(Particle::from_spawn(spawn));
+        id
+    }
+
+    pub fn spawn_batch<I>(&mut self, iter: I)
     where
-        B: hecs::Bundle + 'static,
+        I: IntoIterator<Item = ParticleSpawn<T>>,
     {
-        self.world.reserve::<B>(additional);
-    }
+        let iter = iter.into_iter();
+        let (lower, _) = iter.size_hint();
+        if lower > 0 {
+            self.particles.reserve(lower);
+        }
 
-    pub fn new_particle(
-        &mut self,
-        particle_type: T,
-        counter: u32,
-        pos: Vec2,
-        size: Vec2,
-    ) -> hecs::Entity {
-        self.world.spawn((
-            particle_type,
-            Counter { counter },
-            Position { pos },
-            Size { size },
-            Rotation { rot: 0.0 },
-            DrawLayer { draw_layer: 0 },
-            Alpha { alpha: 1.0 },
-        ))
-    }
-
-    pub fn spawn_batch<B, I>(&mut self, iter: I)
-    where
-        B: hecs::Bundle + 'static,
-        I: IntoIterator<Item = B>,
-    {
-        self.world.spawn_batch(iter).for_each(drop);
-    }
-
-    pub fn add_draw_layer(&mut self, entity: hecs::Entity, draw_layer: u32) {
-        let _ = self.world.insert_one(entity, DrawLayer { draw_layer });
-    }
-
-    pub fn add_velocity(&mut self, entity: hecs::Entity, vel: Vec2) {
-        let _ = self.world.insert_one(entity, Velocity { vel });
-    }
-
-    pub fn add_acceleration(&mut self, entity: hecs::Entity, acc: Vec2) {
-        let _ = self.world.insert_one(entity, Acceleration { acc });
-    }
-
-    pub fn add_size_velocity(&mut self, entity: hecs::Entity, size_vel: f32) {
-        let _ = self.world.insert_one(entity, SizeVelocity { size_vel });
-    }
-
-    pub fn add_size_acceleration(&mut self, entity: hecs::Entity, size_acc: f32) {
-        let _ = self.world.insert_one(entity, SizeAcceleration { size_acc });
-    }
-
-    pub fn add_rotation(&mut self, entity: hecs::Entity, rot: f32) {
-        let _ = self.world.insert_one(entity, Rotation { rot });
-    }
-
-    pub fn add_rotation_velocity(&mut self, entity: hecs::Entity, rot_vel: f32) {
-        let _ = self.world.insert_one(entity, RotationVelocity { rot_vel });
-    }
-
-    pub fn add_rotation_acceleration(&mut self, entity: hecs::Entity, rot_acc: f32) {
-        let _ = self
-            .world
-            .insert_one(entity, RotationAcceleration { rot_acc });
-    }
-
-    pub fn add_alpha(&mut self, entity: hecs::Entity, alpha: f32) {
-        let _ = self.world.insert_one(entity, Alpha { alpha });
-    }
-
-    pub fn add_alpha_velocity(&mut self, entity: hecs::Entity, alpha_vel: f32) {
-        let _ = self.world.insert_one(entity, AlphaVelocity { alpha_vel });
-    }
-
-    pub fn add_alpha_acceleration(&mut self, entity: hecs::Entity, alpha_acc: f32) {
-        let _ = self
-            .world
-            .insert_one(entity, AlphaAcceleration { alpha_acc });
-    }
-
-    pub fn add_spline(
-        &mut self,
-        entity: hecs::Entity,
-        point_1: Vec2,
-        point_2: Vec2,
-        point_3: Vec2,
-        strength: f32,
-    ) {
-        let _ = self.world.insert_one(
-            entity,
-            Spline {
-                t: 0.0,
-                strength,
-                point_1,
-                point_2,
-                point_3,
-            },
-        );
-    }
-
-    pub fn add_spline_velocity(&mut self, entity: hecs::Entity, tvel: f32) {
-        let _ = self.world.insert_one(entity, SplineVelocity { tvel });
-    }
-
-    pub fn add_spline_acceleration(&mut self, entity: hecs::Entity, tacc: f32) {
-        let _ = self.world.insert_one(entity, SplineAcceleration { tacc });
+        for spawn in iter {
+            self.particles.push(Particle::from_spawn(spawn));
+        }
     }
 
     pub fn step(&mut self) {
-        self.expired_entities.clear();
-        for (entity, counter) in self.world.query_mut::<(hecs::Entity, &mut Counter)>() {
-            if counter.counter == 0 {
-                self.expired_entities.push(entity);
-            } else {
-                counter.counter -= 1;
+        let mut i = 0;
+        while i < self.particles.len() {
+            let particle = &mut self.particles[i];
+            if particle.counter == 0 {
+                self.particles.swap_remove(i);
+                continue;
             }
-        }
+            particle.counter -= 1;
 
-        for entity in self.expired_entities.iter().copied() {
-            let _ = self.world.despawn(entity);
-        }
-        self.expired_entities.clear();
-
-        for (pos, vel, acc) in
-            self.world
-                .query_mut::<(&mut Position, Option<&mut Velocity>, Option<&Acceleration>)>()
-        {
-            if let Some(vel) = vel {
-                if let Some(acc) = acc {
-                    vel.vel += acc.acc;
+            if particle.has(HAS_VELOCITY) {
+                if particle.has(HAS_ACCELERATION) {
+                    particle.velocity += particle.acceleration;
                 }
-                pos.pos += vel.vel;
+                particle.pos += particle.velocity;
             }
-        }
 
-        for (size, size_vel, size_acc) in self.world.query_mut::<(
-            &mut Size,
-            Option<&mut SizeVelocity>,
-            Option<&SizeAcceleration>,
-        )>() {
-            if let Some(size_vel) = size_vel {
-                if let Some(size_acc) = size_acc {
-                    size_vel.size_vel += size_acc.size_acc;
+            if particle.has(HAS_SIZE_VELOCITY) {
+                if particle.has(HAS_SIZE_ACCELERATION) {
+                    particle.size_velocity += particle.size_acceleration;
                 }
-                size.size += size_vel.size_vel;
-                size.size = size.size.max(Vec2::ZERO);
+                particle.size += particle.size_velocity;
+                particle.size = particle.size.max(Vec2::ZERO);
             }
-        }
 
-        for (rot, rot_vel, rot_acc) in self.world.query_mut::<(
-            &mut Rotation,
-            Option<&mut RotationVelocity>,
-            Option<&RotationAcceleration>,
-        )>() {
-            if let Some(rot_vel) = rot_vel {
-                if let Some(rot_acc) = rot_acc {
-                    rot_vel.rot_vel += rot_acc.rot_acc;
+            if particle.has(HAS_ROTATION_VELOCITY) {
+                if particle.has(HAS_ROTATION_ACCELERATION) {
+                    particle.rotation_velocity += particle.rotation_acceleration;
                 }
-                rot.rot += rot_vel.rot_vel;
+                particle.rotation += particle.rotation_velocity;
             }
-        }
 
-        for (alpha, alpha_vel, alpha_acc) in self.world.query_mut::<(
-            &mut Alpha,
-            Option<&mut AlphaVelocity>,
-            Option<&AlphaAcceleration>,
-        )>() {
-            if let Some(alpha_vel) = alpha_vel {
-                if let Some(alpha_acc) = alpha_acc {
-                    alpha_vel.alpha_vel += alpha_acc.alpha_acc;
+            if particle.has(HAS_ALPHA_VELOCITY) {
+                if particle.has(HAS_ALPHA_ACCELERATION) {
+                    particle.alpha_velocity += particle.alpha_acceleration;
                 }
-                alpha.alpha = (alpha.alpha + alpha_vel.alpha_vel).clamp(0.0, 1.0);
+                particle.alpha = (particle.alpha + particle.alpha_velocity).clamp(0.0, 1.0);
             }
-        }
 
-        for (pos, spline, tvel, tacc) in self.world.query_mut::<(
-            &mut Position,
-            &mut Spline,
-            Option<&mut SplineVelocity>,
-            Option<&SplineAcceleration>,
-        )>() {
-            if let Some(tvel) = tvel {
-                if let Some(tacc) = tacc {
-                    tvel.tvel += tacc.tacc;
+            if particle.has(HAS_SPLINE) {
+                if particle.has(HAS_SPLINE_VELOCITY) {
+                    if particle.has(HAS_SPLINE_ACCELERATION) {
+                        particle.spline_velocity += particle.spline_acceleration;
+                    }
+                    particle.spline_t =
+                        (particle.spline_t + particle.spline_velocity).clamp(0.0, 1.0);
                 }
-                spline.t = (spline.t + tvel.tvel).clamp(0.0, 1.0);
+
+                let new_pos = calculate_bezier_point(
+                    particle.spline_t,
+                    particle.spline_point_1,
+                    particle.spline_point_2,
+                    particle.spline_point_3,
+                );
+                if particle.spline_strength == 1.0 {
+                    particle.pos = new_pos;
+                } else {
+                    particle.pos += (new_pos - particle.pos) * particle.spline_strength;
+                }
             }
 
-            let new_pos =
-                calculate_bezier_point(spline.t, spline.point_1, spline.point_2, spline.point_3);
-            if spline.strength == 1.0 {
-                pos.pos = new_pos;
-            } else {
-                pos.pos += (new_pos - pos.pos) * spline.strength;
-            }
+            i += 1;
         }
     }
 }
 
 impl<T> Default for ParticleSystem<T>
 where
-    T: ParticleTypeTrait + Send + Sync + 'static,
+    T: ParticleTypeTrait,
 {
     fn default() -> Self {
         Self::new()

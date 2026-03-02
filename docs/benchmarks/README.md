@@ -28,6 +28,11 @@ After running benchmarks, copy key means and confidence intervals into a dated f
 
 - `docs/benchmarks/YYYY-MM-DD-baseline.md`
 
+## Recorded Runs
+
+- `2026-03-02-ecs-baseline-before-packed-rewrite.md`
+- `2026-03-02-packed-rewrite-results.md`
+
 Include:
 
 - CPU model
