@@ -13,6 +13,7 @@ enum BenchType {
 impl ParticleTypeTrait for BenchType {}
 
 fn seed_steady_system(count: u32) -> ParticleSystem<BenchType> {
+    const STEADY_COUNTER: u32 = 1_000_000_000;
     let mut ps = ParticleSystem::new();
     ps.reserve_particles(count);
 
@@ -23,14 +24,14 @@ fn seed_steady_system(count: u32) -> ParticleSystem<BenchType> {
         match i % 3 {
             0 => {
                 ps.spawn(
-                    ParticleSpawn::new(BenchType::Burst, 20_000, base, size)
+                    ParticleSpawn::new(BenchType::Burst, STEADY_COUNTER, base, size)
                         .with_velocity(Vec2::new(0.05, -0.02))
                         .with_acceleration(Vec2::new(0.0, 0.0005)),
                 );
             }
             1 => {
                 ps.spawn(
-                    ParticleSpawn::new(BenchType::Smoke, 20_000, base, size)
+                    ParticleSpawn::new(BenchType::Smoke, STEADY_COUNTER, base, size)
                         .with_alpha(0.8)
                         .with_alpha_velocity(-0.0001)
                         .with_velocity(Vec2::new(0.02, -0.03))
@@ -43,7 +44,7 @@ fn seed_steady_system(count: u32) -> ParticleSystem<BenchType> {
             }
             _ => {
                 ps.spawn(
-                    ParticleSpawn::new(BenchType::Spline, 20_000, base, size)
+                    ParticleSpawn::new(BenchType::Spline, STEADY_COUNTER, base, size)
                         .with_alpha(0.4)
                         .with_alpha_velocity(0.0002)
                         .with_spline(SplineState {
@@ -95,6 +96,26 @@ fn build_burst_spawns(count: u32) -> Vec<ParticleSpawn<BenchType>> {
 fn bench_step_steady_10k(c: &mut Criterion) {
     c.bench_function("step_steady_10k", |b| {
         let mut ps = seed_steady_system(10_000);
+        b.iter(|| {
+            ps.step();
+            black_box(ps.len());
+        });
+    });
+}
+
+fn bench_step_100(c: &mut Criterion) {
+    c.bench_function("step_100", |b| {
+        let mut ps = seed_steady_system(100);
+        b.iter(|| {
+            ps.step();
+            black_box(ps.len());
+        });
+    });
+}
+
+fn bench_step_1k(c: &mut Criterion) {
+    c.bench_function("step_1k", |b| {
+        let mut ps = seed_steady_system(1_000);
         b.iter(|| {
             ps.step();
             black_box(ps.len());
@@ -161,6 +182,8 @@ fn bench_spawn_50k_batch(c: &mut Criterion) {
 
 criterion_group!(
     benches,
+    bench_step_100,
+    bench_step_1k,
     bench_step_steady_10k,
     bench_step_steady_50k,
     bench_burst_100k_lifecycle,

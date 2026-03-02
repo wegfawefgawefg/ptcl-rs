@@ -1,0 +1,53 @@
+# Plan 003: CPU Optimization Experiments
+
+## Goal
+
+Push CPU particle throughput further while keeping the library API simple and renderer-agnostic.
+
+## Experiment Rules
+
+- Change one major optimization at a time when possible.
+- Benchmark before and after each change.
+- Record both wins and regressions.
+- Keep notes on tradeoffs (small particle counts, spawn-heavy workloads, few-core machines).
+
+## Benchmark Matrix
+
+Primary scenarios:
+
+- `step_100`
+- `step_1k`
+- `step_steady_10k`
+- `step_steady_50k`
+- `burst_100k_lifecycle`
+- `spawn_50k_single`
+- `spawn_50k_batch`
+
+Hardware context checks:
+
+- Standard run on full machine.
+- Optional reduced-core run (for parallel experiments) with:
+  - `taskset` / affinity pinning
+  - thread-count limits
+
+## Candidate Optimizations
+
+1. Lane compaction strategy:
+   - compare `swap_remove` loop vs write-index compaction.
+2. Spawn path specialization:
+   - keep lane routing explicit and benchmark direct lane batch APIs.
+3. Lane-specific data layout:
+   - evaluate SoA for hottest lanes.
+4. Branch minimization:
+   - split by common flag combinations where practical.
+5. Parallel step:
+   - optional threshold-based multithreaded update for large counts.
+6. SIMD-focused math path:
+   - investigate `std::simd` for bulk math updates.
+
+## Success Criteria
+
+- Measurable improvement in target scenarios with stable behavior.
+- No large regressions in small-count scenarios unless explicitly accepted.
+- Full record exists for each attempt in benchmark docs/log.
+
