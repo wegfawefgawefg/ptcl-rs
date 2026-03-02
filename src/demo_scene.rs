@@ -16,8 +16,8 @@ pub struct State {
     pub particle_system: ParticleSystem<ParticleType>,
     pub particle_effects_texture: Texture2D,
     rng: SmallRng,
-    click_batch: Vec<ParticleSpawn<ParticleType>>,
-    emitter_batch: Vec<ParticleSpawn<ParticleType>>,
+    ballistic_batch: Vec<ParticleSpawn<ParticleType>>,
+    spline_batch: Vec<ParticleSpawn<ParticleType>>,
 }
 
 impl State {
@@ -37,8 +37,8 @@ impl State {
             particle_system,
             particle_effects_texture,
             rng: SmallRng::from_os_rng(),
-            click_batch: Vec::with_capacity(1_600),
-            emitter_batch: Vec::with_capacity(64),
+            ballistic_batch: Vec::with_capacity(1_600),
+            spline_batch: Vec::with_capacity(1_600),
         }
     }
 }
@@ -66,7 +66,7 @@ pub fn draw(state: &mut State, d: &mut RaylibTextureMode<RaylibDrawHandle>) {
 }
 
 pub fn draw_particles(state: &State, d: &mut RaylibTextureMode<RaylibDrawHandle>) {
-    for particle in &state.particle_system.particles {
+    state.particle_system.for_each_particle(|particle| {
         let sample_region = get_sample_region(particle.particle_type, particle.counter);
         let color = Color::new(255, 255, 255, (particle.alpha * 255.0) as u8);
         d.draw_texture_pro(
@@ -87,14 +87,15 @@ pub fn draw_particles(state: &State, d: &mut RaylibTextureMode<RaylibDrawHandle>
             particle.rotation,
             color,
         );
-    }
+    });
 }
 
 fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
     let a = Vec2::new(mouse_pos.x, mouse_pos.y);
     let center = state.sim_dims / 2.0;
 
-    state.click_batch.clear();
+    state.ballistic_batch.clear();
+    state.spline_batch.clear();
 
     for _ in 0..1_000 {
         let counter = state.rng.random_range(50..100);
@@ -110,7 +111,7 @@ fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
             a.y + state.rng.random_range(-offset..offset),
         );
 
-        state.click_batch.push(
+        state.spline_batch.push(
             ParticleSpawn::new(ParticleType::Explosion, counter, a, size)
                 .with_alpha(0.0)
                 .with_alpha_velocity(0.005)
@@ -139,7 +140,7 @@ fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
             center.y + state.rng.random_range(-offset..offset),
         );
 
-        state.click_batch.push(
+        state.spline_batch.push(
             ParticleSpawn::new(ParticleType::Smoke, counter, a, size)
                 .with_alpha(0.05)
                 .with_alpha_velocity(-0.0008)
@@ -170,7 +171,7 @@ fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
             state.rng.random_range(-mag..mag),
         );
 
-        state.click_batch.push(
+        state.ballistic_batch.push(
             ParticleSpawn::new(ParticleType::Explosion, counter, a, size)
                 .with_velocity(vel)
                 .with_acceleration(Vec2::new(0.0, 0.2)),
@@ -179,7 +180,10 @@ fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
 
     state
         .particle_system
-        .spawn_batch(state.click_batch.drain(..));
+        .spawn_spline_batch(state.spline_batch.drain(..));
+    state
+        .particle_system
+        .spawn_ballistic_batch(state.ballistic_batch.drain(..));
 }
 
 fn spawn_rotating_emitters(state: &mut State) {
@@ -189,7 +193,7 @@ fn spawn_rotating_emitters(state: &mut State) {
     center.y += center.y / 2.0;
     let offset = center / 8.0;
 
-    state.emitter_batch.clear();
+    state.ballistic_batch.clear();
 
     for i in 0..3 {
         let rot = glam::Mat2::from_angle(angle + i as f32 * 90.0);
@@ -210,7 +214,7 @@ fn spawn_rotating_emitters(state: &mut State) {
                 state.rng.random_range(-mag..mag),
             );
 
-            state.emitter_batch.push(
+            state.ballistic_batch.push(
                 ParticleSpawn::new(ParticleType::Explosion, counter, rect_center, size)
                     .with_alpha_velocity(-0.05)
                     .with_velocity(vel)
@@ -232,7 +236,7 @@ fn spawn_rotating_emitters(state: &mut State) {
             );
 
             let spin_mag = 2.0;
-            state.emitter_batch.push(
+            state.ballistic_batch.push(
                 ParticleSpawn::new(ParticleType::Smoke, counter, rect_center, size)
                     .with_alpha(0.1)
                     .with_alpha_velocity(-0.001)
@@ -248,5 +252,5 @@ fn spawn_rotating_emitters(state: &mut State) {
 
     state
         .particle_system
-        .spawn_batch(state.emitter_batch.drain(..));
+        .spawn_ballistic_batch(state.ballistic_batch.drain(..));
 }

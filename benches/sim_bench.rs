@@ -151,7 +151,7 @@ fn bench_spawn_50k_batch(c: &mut Criterion) {
             |spawns| {
                 let mut ps = ParticleSystem::<BenchType>::new();
                 ps.reserve_particles(spawns.len() as u32);
-                ps.spawn_batch(spawns);
+                ps.spawn_ballistic_batch(spawns);
                 black_box(ps.len());
             },
             BatchSize::SmallInput,

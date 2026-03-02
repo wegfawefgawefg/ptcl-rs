@@ -32,6 +32,8 @@ After running benchmarks, copy key means and confidence intervals into a dated f
 
 - `2026-03-02-ecs-baseline-before-packed-rewrite.md`
 - `2026-03-02-packed-rewrite-results.md`
+- `2026-03-02-lane-split-results.md`
+- `2026-03-02-lane-split-spawn-specialized-results.md`
 
 Include:
 
