@@ -205,7 +205,7 @@ where
 
     pub fn step(&mut self) {
         let mut expired_particles = vec![];
-        for (entity, counter) in self.world.query::<&Counter>().iter() {
+        for (entity, counter) in self.world.query_mut::<(hecs::Entity, &Counter)>() {
             if counter.counter == 0 {
                 expired_particles.push(entity);
             }
@@ -216,75 +216,69 @@ where
         }
 
         // counter
-        for (_, counter) in self.world.query::<&mut Counter>().iter() {
+        for counter in self.world.query_mut::<&mut Counter>() {
             if counter.counter > 0 {
                 counter.counter -= 1;
             }
         }
 
         // pos
-        for (_, (vel, acc)) in self.world.query::<(&mut Velocity, &Acceleration)>().iter() {
+        for (vel, acc) in self.world.query_mut::<(&mut Velocity, &Acceleration)>() {
             vel.vel += acc.acc;
         }
-        for (_, (pos, vel)) in self.world.query::<(&mut Position, &Velocity)>().iter() {
+        for (pos, vel) in self.world.query_mut::<(&mut Position, &Velocity)>() {
             pos.pos += vel.vel;
         }
 
         // size
-        for (_, (size_vel, size_acc)) in self
+        for (size_vel, size_acc) in self
             .world
-            .query::<(&mut SizeVelocity, &SizeAcceleration)>()
-            .iter()
+            .query_mut::<(&mut SizeVelocity, &SizeAcceleration)>()
         {
             size_vel.size_vel += size_acc.size_acc;
         }
-        for (_, (size, size_vel)) in self.world.query::<(&mut Size, &SizeVelocity)>().iter() {
+        for (size, size_vel) in self.world.query_mut::<(&mut Size, &SizeVelocity)>() {
             size.size += size_vel.size_vel;
             size.size = size.size.max(Vec2::ZERO);
         }
 
         // rotation
-        for (_, (rot_vel, rot_acc)) in self
+        for (rot_vel, rot_acc) in self
             .world
-            .query::<(&mut RotationVelocity, &RotationAcceleration)>()
-            .iter()
+            .query_mut::<(&mut RotationVelocity, &RotationAcceleration)>()
         {
             rot_vel.rot_vel += rot_acc.rot_acc;
         }
-        for (_, (rot, rot_vel)) in self
+        for (rot, rot_vel) in self
             .world
-            .query::<(&mut Rotation, &RotationVelocity)>()
-            .iter()
+            .query_mut::<(&mut Rotation, &RotationVelocity)>()
         {
             rot.rot += rot_vel.rot_vel;
         }
 
         // alpha
-        for (_, (alpha_vel, alpha_acc)) in self
+        for (alpha_vel, alpha_acc) in self
             .world
-            .query::<(&mut AlphaVelocity, &AlphaAcceleration)>()
-            .iter()
+            .query_mut::<(&mut AlphaVelocity, &AlphaAcceleration)>()
         {
             alpha_vel.alpha_vel += alpha_acc.alpha_acc;
         }
-        for (_, (alpha, alpha_vel)) in self.world.query::<(&mut Alpha, &AlphaVelocity)>().iter() {
+        for (alpha, alpha_vel) in self.world.query_mut::<(&mut Alpha, &AlphaVelocity)>() {
             alpha.alpha += alpha_vel.alpha_vel;
             alpha.alpha = alpha.alpha.min(1.0).max(0.0);
         }
 
         // spline
-        for (_, (tvel, tacc)) in self
+        for (tvel, tacc) in self
             .world
-            .query::<(&mut SplineVelocity, &SplineAcceleration)>()
-            .iter()
+            .query_mut::<(&mut SplineVelocity, &SplineAcceleration)>()
         {
             tvel.tvel += tacc.tacc;
         }
 
-        for (_, (pos, spline, tvel)) in self
+        for (pos, spline, tvel) in self
             .world
-            .query::<(&mut Position, &mut Spline, &SplineVelocity)>()
-            .iter()
+            .query_mut::<(&mut Position, &mut Spline, &SplineVelocity)>()
         {
             spline.t += tvel.tvel;
             spline.t = spline.t.min(1.0).max(0.0);

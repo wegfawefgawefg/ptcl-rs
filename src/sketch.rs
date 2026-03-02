@@ -37,8 +37,8 @@ pub fn process_events_and_input(rl: &mut RaylibHandle, state: &mut State) {
         state.running = false;
     }
 
-    let mut rng = rand::thread_rng();
-    if rl.is_mouse_button_pressed(raylib::consts::MouseButton::MOUSE_LEFT_BUTTON) {
+    let mut rng = rand::rng();
+    if rl.is_mouse_button_pressed(raylib::consts::MouseButton::MOUSE_BUTTON_LEFT) {
         let mouse_pos = rl.get_mouse_position();
 
         let size = Vec2::new(1280.0, 720.0);
@@ -50,10 +50,10 @@ pub fn process_events_and_input(rl: &mut RaylibHandle, state: &mut State) {
         // explosions
         for _ in 0..1000 {
             let particle_type = ParticleType::Explosion;
-            let counter = rng.gen_range(50..100);
+            let counter = rng.random_range(50..100);
             let pos = Vec2::new(mouse_pos.x, mouse_pos.y);
             let max_size = 42.0;
-            let size = rng.gen_range((max_size - max_size / 4.0)..max_size);
+            let size = rng.random_range((max_size - max_size / 4.0)..max_size);
             let size = Vec2::new(size, size);
             let particle = state
                 .particle_system
@@ -62,8 +62,8 @@ pub fn process_events_and_input(rl: &mut RaylibHandle, state: &mut State) {
             let offset = 75.0;
 
             let b = Vec2::new(
-                a.x + rng.gen_range(-offset..offset),
-                a.y + rng.gen_range(-offset..offset),
+                a.x + rng.random_range(-offset..offset),
+                a.y + rng.random_range(-offset..offset),
             );
             let c = center;
 
@@ -78,22 +78,22 @@ pub fn process_events_and_input(rl: &mut RaylibHandle, state: &mut State) {
             state.particle_system.add_alpha_velocity(particle, 0.005);
             state
                 .particle_system
-                .add_spline_velocity(particle, rng.gen_range(0.01..0.02));
+                .add_spline_velocity(particle, rng.random_range(0.01..0.02));
             state
                 .particle_system
-                .add_spline_acceleration(particle, rng.gen_range(-0.0005..0.000));
+                .add_spline_acceleration(particle, rng.random_range(-0.0005..0.000));
 
             state
                 .particle_system
-                .add_size_velocity(particle, rng.gen_range(-0.5..0.0));
+                .add_size_velocity(particle, rng.random_range(-0.5..0.0));
         }
 
         for _ in 0..500 {
             let particle_type = ParticleType::Smoke;
-            let counter = rng.gen_range(50..100);
+            let counter = rng.random_range(50..100);
             let pos = Vec2::new(mouse_pos.x, mouse_pos.y);
             let max_size = 16.0;
-            let size = rng.gen_range(8.0..max_size);
+            let size = rng.random_range(8.0..max_size);
             let size = Vec2::new(size, size);
             let particle = state
                 .particle_system
@@ -102,8 +102,8 @@ pub fn process_events_and_input(rl: &mut RaylibHandle, state: &mut State) {
             let offset = 100.0;
 
             let b = Vec2::new(
-                center.x + rng.gen_range(-offset..offset),
-                center.y + rng.gen_range(-offset..offset),
+                center.x + rng.random_range(-offset..offset),
+                center.y + rng.random_range(-offset..offset),
             );
             let c = center;
 
@@ -118,14 +118,14 @@ pub fn process_events_and_input(rl: &mut RaylibHandle, state: &mut State) {
             state.particle_system.add_alpha_velocity(particle, -0.0008);
             state
                 .particle_system
-                .add_spline_velocity(particle, rng.gen_range(0.01..0.02));
+                .add_spline_velocity(particle, rng.random_range(0.01..0.02));
             state
                 .particle_system
-                .add_spline_acceleration(particle, rng.gen_range(-0.0005..0.000));
+                .add_spline_acceleration(particle, rng.random_range(-0.0005..0.000));
 
             state
                 .particle_system
-                .add_size_velocity(particle, rng.gen_range(0.0..2.0));
+                .add_size_velocity(particle, rng.random_range(0.0..2.0));
             state
                 .particle_system
                 .add_velocity(particle, Vec2::new(0.0, -10.0));
@@ -136,10 +136,10 @@ pub fn process_events_and_input(rl: &mut RaylibHandle, state: &mut State) {
 
         for _ in 0..100 {
             let particle_type = ParticleType::Explosion;
-            let counter = rng.gen_range(8..32);
+            let counter = rng.random_range(8..32);
             let pos = Vec2::new(mouse_pos.x, mouse_pos.y);
             let max_size = 16.0;
-            let size = rng.gen_range(1.0..max_size);
+            let size = rng.random_range(1.0..max_size);
             let size = Vec2::new(size, size);
             let particle = state
                 .particle_system
@@ -147,7 +147,7 @@ pub fn process_events_and_input(rl: &mut RaylibHandle, state: &mut State) {
 
             // add random velocity
             let mag = 1.0;
-            let vel = Vec2::new(rng.gen_range(-mag..mag), rng.gen_range(-mag..mag));
+            let vel = Vec2::new(rng.random_range(-mag..mag), rng.random_range(-mag..mag));
 
             state.particle_system.add_velocity(particle, vel);
             state
@@ -157,7 +157,7 @@ pub fn process_events_and_input(rl: &mut RaylibHandle, state: &mut State) {
     }
 }
 
-pub fn step(rl: &mut RaylibHandle, rlt: &mut RaylibThread, state: &mut State) {
+pub fn step(_rl: &mut RaylibHandle, _rlt: &mut RaylibThread, state: &mut State) {
     state.particle_system.step();
 }
 
@@ -189,14 +189,14 @@ pub fn draw(state: &mut State, d: &mut RaylibTextureMode<RaylibDrawHandle>) {
         // spawn 10 particles at the rect center
         let rect_center = rect_pos_rotated + size / 2.0;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..8 {
             let particle_type = ParticleType::Explosion;
-            let counter = rng.gen_range(8..24);
+            let counter = rng.random_range(8..24);
             let pos = rect_center;
             let max_size = size / 2.0;
-            let size = rng.gen_range(1.0..max_size);
+            let size = rng.random_range(1.0..max_size);
             let size = Vec2::new(size, size);
             let particle = state
                 .particle_system
@@ -204,7 +204,7 @@ pub fn draw(state: &mut State, d: &mut RaylibTextureMode<RaylibDrawHandle>) {
 
             // add random velocity
             let mag = 0.1;
-            let vel = Vec2::new(rng.gen_range(-mag..mag), rng.gen_range(-mag..mag));
+            let vel = Vec2::new(rng.random_range(-mag..mag), rng.random_range(-mag..mag));
 
             state.particle_system.add_velocity(particle, vel);
             state
@@ -217,10 +217,10 @@ pub fn draw(state: &mut State, d: &mut RaylibTextureMode<RaylibDrawHandle>) {
         // smoke
         for _ in 0..4 {
             let particle_type = ParticleType::Smoke;
-            let counter = rng.gen_range(60..1000);
+            let counter = rng.random_range(60..1000);
             let pos = rect_center;
             let max_size = size / 2.0;
-            let size = rng.gen_range(1.0..max_size);
+            let size = rng.random_range(1.0..max_size);
             let size = Vec2::new(size, size);
             let particle = state
                 .particle_system
@@ -229,7 +229,7 @@ pub fn draw(state: &mut State, d: &mut RaylibTextureMode<RaylibDrawHandle>) {
             // add random velocity
             let x_mag = 0.1;
             let y_mag = 0.5;
-            let vel = Vec2::new(rng.gen_range(-x_mag..x_mag), rng.gen_range(0.0..y_mag));
+            let vel = Vec2::new(rng.random_range(-x_mag..x_mag), rng.random_range(0.0..y_mag));
 
             state.particle_system.add_velocity(particle, vel);
             state
@@ -244,7 +244,7 @@ pub fn draw(state: &mut State, d: &mut RaylibTextureMode<RaylibDrawHandle>) {
             let spin_mag = 2.0;
             state
                 .particle_system
-                .add_rotation_velocity(particle, rng.gen_range(-spin_mag..spin_mag));
+                .add_rotation_velocity(particle, rng.random_range(-spin_mag..spin_mag));
             // // slow spin
             state
                 .particle_system
@@ -255,7 +255,7 @@ pub fn draw(state: &mut State, d: &mut RaylibTextureMode<RaylibDrawHandle>) {
     draw_particles(state, d);
 }
 pub fn draw_particles(state: &State, d: &mut RaylibTextureMode<RaylibDrawHandle>) {
-    for (_, (particle_type, counter, pos, size, rot, alpha)) in state
+    for (particle_type, counter, pos, size, rot, alpha) in state
         .particle_system
         .world
         .query::<(

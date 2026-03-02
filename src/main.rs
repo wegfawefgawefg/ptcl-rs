@@ -28,7 +28,7 @@ fn main() {
     let mouse_scale = dims.as_vec2() / window_dims.as_vec2();
     rl.set_mouse_scale(mouse_scale.x, mouse_scale.y);
 
-    let mut render_texture = rl.load_render_texture(dims.x, dims.y).unwrap_or_else(|e| {
+    let mut render_texture = rl.load_render_texture(&rlt, dims.x, dims.y).unwrap_or_else(|e| {
         println!("Error creating render texture: {}", e);
         std::process::exit(1);
     });
