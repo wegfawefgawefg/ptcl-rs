@@ -8,6 +8,13 @@ This folder tracks benchmark methodology and baseline outputs.
 cargo bench --bench sim_bench
 ```
 
+For stable experiment A/B tracking across code changes:
+
+```bash
+cargo bench --bench sim_bench --save-baseline <name>
+cargo bench --bench sim_bench --baseline <name>
+```
+
 ## Current Suite
 
 - `step_100`
@@ -43,6 +50,7 @@ After running benchmarks, copy key means and confidence intervals into a dated f
 - `2026-03-02-experiment-03-branch-minimization.md`
 - `2026-03-02-experiment-04-thresholded-parallel-step.md`
 - `2026-03-02-experiment-05-linear-pair-simd.md`
+- `2026-03-02-experiment-06-spline-bezier-precompute.md`
 - `2026-03-02-profiling-callgrind-step.md`
 - `optimization-experiment-log.md`
 

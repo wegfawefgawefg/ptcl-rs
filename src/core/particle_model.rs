@@ -257,9 +257,9 @@ where
 pub(crate) struct SplineMotion {
     pub(crate) t: f32,
     pub(crate) strength: f32,
-    pub(crate) point_1: Vec2,
-    pub(crate) point_2: Vec2,
-    pub(crate) point_3: Vec2,
+    pub(crate) bezier_a: Vec2,
+    pub(crate) bezier_b: Vec2,
+    pub(crate) bezier_c: Vec2,
     pub(crate) velocity: f32,
     pub(crate) acceleration: f32,
     pub(crate) flags: u16,
@@ -273,6 +273,9 @@ impl SplineMotion {
         let spline = spawn
             .spline
             .expect("internal error: spline lane requires spline state");
+        let bezier_c = spline.point_1;
+        let bezier_b = (spline.point_2 - spline.point_1) * 2.0;
+        let bezier_a = spline.point_1 - (spline.point_2 * 2.0) + spline.point_3;
 
         let mut flags = 0u16;
         let velocity = if let Some(v) = spawn.spline_velocity {
@@ -292,9 +295,9 @@ impl SplineMotion {
         Self {
             t: spline.t,
             strength: spline.strength,
-            point_1: spline.point_1,
-            point_2: spline.point_2,
-            point_3: spline.point_3,
+            bezier_a,
+            bezier_b,
+            bezier_c,
             velocity,
             acceleration,
             flags,
@@ -304,6 +307,11 @@ impl SplineMotion {
     #[inline(always)]
     pub(crate) fn has(&self, mask: u16) -> bool {
         (self.flags & mask) != 0
+    }
+
+    #[inline(always)]
+    pub(crate) fn evaluate_bezier(&self, t: f32) -> Vec2 {
+        ((self.bezier_a * t) + self.bezier_b) * t + self.bezier_c
     }
 }
 

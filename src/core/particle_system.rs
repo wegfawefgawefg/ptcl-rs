@@ -1,8 +1,8 @@
 use glam::Vec2;
 
 use super::particle_model::{
-    calculate_bezier_point, ParticleCore, ParticleRenderData, ParticleSpawn, ParticleTypeTrait,
-    SplineMotion, SplineParticle, HAS_ACCELERATION, HAS_ALPHA_ACCELERATION, HAS_ALPHA_VELOCITY,
+    ParticleCore, ParticleRenderData, ParticleSpawn, ParticleTypeTrait, SplineMotion,
+    SplineParticle, HAS_ACCELERATION, HAS_ALPHA_ACCELERATION, HAS_ALPHA_VELOCITY,
     HAS_ROTATION_ACCELERATION, HAS_ROTATION_VELOCITY, HAS_SIZE_ACCELERATION, HAS_SIZE_VELOCITY,
     HAS_SPLINE_ACCELERATION, HAS_SPLINE_VELOCITY, HAS_VELOCITY,
 };
@@ -278,7 +278,7 @@ where
         spline.t = (spline.t + spline.velocity).clamp(0.0, 1.0);
     }
 
-    let new_pos = calculate_bezier_point(spline.t, spline.point_1, spline.point_2, spline.point_3);
+    let new_pos = spline.evaluate_bezier(spline.t);
     if spline.strength == 1.0 {
         particle.pos = new_pos;
     } else {

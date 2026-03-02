@@ -10,3 +10,7 @@ some particle system particle templates, part of a family of ports
 
 - Core particle simulation lives in `src/core` and does not depend on `raylib`.
 - The demo binary is feature-gated behind `demo-raylib`.
+
+## Archive
+
+- First commit: `2024-03-04` (`85cabbf`, "Initial commit")
