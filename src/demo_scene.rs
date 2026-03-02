@@ -1,5 +1,5 @@
 use glam::Vec2;
-use rand::{rngs::ThreadRng, Rng};
+use rand::{rngs::SmallRng, Rng, SeedableRng};
 use raylib::prelude::*;
 
 use ptcl_rs::core::{
@@ -12,6 +12,67 @@ use crate::demo_particles::{get_sample_region, ParticleType};
 
 pub const FRAMES_PER_SECOND: u32 = 60;
 
+type ExplosionSplineBundle = (
+    ParticleType,
+    Counter,
+    Position,
+    Size,
+    Rotation,
+    DrawLayer,
+    Alpha,
+    AlphaVelocity,
+    Spline,
+    SplineVelocity,
+    SplineAcceleration,
+    SizeVelocity,
+);
+
+type SmokeSplineBundle = (
+    ParticleType,
+    Counter,
+    Position,
+    Size,
+    Rotation,
+    DrawLayer,
+    Alpha,
+    AlphaVelocity,
+    Velocity,
+    Acceleration,
+    SizeVelocity,
+    Spline,
+    SplineVelocity,
+    SplineAcceleration,
+);
+
+type ExplosionBallisticBundle = (
+    ParticleType,
+    Counter,
+    Position,
+    Size,
+    Rotation,
+    DrawLayer,
+    Alpha,
+    Velocity,
+    Acceleration,
+);
+
+type EmitterSmokeBundle = (
+    ParticleType,
+    Counter,
+    Position,
+    Size,
+    Rotation,
+    DrawLayer,
+    Alpha,
+    AlphaVelocity,
+    Velocity,
+    Acceleration,
+    SizeVelocity,
+    SizeAcceleration,
+    RotationVelocity,
+    RotationAcceleration,
+);
+
 pub struct State {
     pub running: bool,
     pub time_since_last_update: f32,
@@ -19,7 +80,12 @@ pub struct State {
     pub sim_dims: Vec2,
     pub particle_system: ParticleSystem<ParticleType>,
     pub particle_effects_texture: Texture2D,
-    rng: ThreadRng,
+    rng: SmallRng,
+    click_explosion_spline_batch: Vec<ExplosionSplineBundle>,
+    click_smoke_spline_batch: Vec<SmokeSplineBundle>,
+    click_explosion_ballistic_batch: Vec<ExplosionBallisticBundle>,
+    emitter_explosion_batch: Vec<ExplosionBallisticBundle>,
+    emitter_smoke_batch: Vec<EmitterSmokeBundle>,
 }
 
 impl State {
@@ -30,6 +96,10 @@ impl State {
 
         let mut particle_system = ParticleSystem::new();
         particle_system.reserve_particles(120_000);
+        particle_system.reserve_bundle::<ExplosionSplineBundle>(120_000);
+        particle_system.reserve_bundle::<SmokeSplineBundle>(120_000);
+        particle_system.reserve_bundle::<ExplosionBallisticBundle>(120_000);
+        particle_system.reserve_bundle::<EmitterSmokeBundle>(120_000);
 
         Self {
             running: true,
@@ -38,7 +108,12 @@ impl State {
             sim_dims,
             particle_system,
             particle_effects_texture,
-            rng: rand::rng(),
+            rng: SmallRng::from_os_rng(),
+            click_explosion_spline_batch: Vec::with_capacity(1_000),
+            click_smoke_spline_batch: Vec::with_capacity(500),
+            click_explosion_ballistic_batch: Vec::with_capacity(100),
+            emitter_explosion_batch: Vec::with_capacity(24),
+            emitter_smoke_batch: Vec::with_capacity(12),
         }
     }
 }
@@ -94,7 +169,11 @@ fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
     let a = Vec2::new(mouse_pos.x, mouse_pos.y);
     let center = state.sim_dims / 2.0;
 
-    for _ in 0..1000 {
+    state.click_explosion_spline_batch.clear();
+    state.click_smoke_spline_batch.clear();
+    state.click_explosion_ballistic_batch.clear();
+
+    for _ in 0..1_000 {
         let counter = state.rng.random_range(50..100);
         let max_size = 42.0;
         let sprite_size = state
@@ -108,7 +187,7 @@ fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
             a.y + state.rng.random_range(-offset..offset),
         );
 
-        state.particle_system.world.spawn((
+        state.click_explosion_spline_batch.push((
             ParticleType::Explosion,
             Counter { counter },
             Position { pos: a },
@@ -148,7 +227,7 @@ fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
             center.y + state.rng.random_range(-offset..offset),
         );
 
-        state.particle_system.world.spawn((
+        state.click_smoke_spline_batch.push((
             ParticleType::Smoke,
             Counter { counter },
             Position { pos: a },
@@ -194,7 +273,7 @@ fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
             state.rng.random_range(-mag..mag),
         );
 
-        state.particle_system.world.spawn((
+        state.click_explosion_ballistic_batch.push((
             ParticleType::Explosion,
             Counter { counter },
             Position { pos: a },
@@ -208,6 +287,19 @@ fn spawn_click_burst(state: &mut State, mouse_pos: Vector2) {
             },
         ));
     }
+
+    flush_batch(
+        &mut state.particle_system,
+        &mut state.click_explosion_spline_batch,
+    );
+    flush_batch(
+        &mut state.particle_system,
+        &mut state.click_smoke_spline_batch,
+    );
+    flush_batch(
+        &mut state.particle_system,
+        &mut state.click_explosion_ballistic_batch,
+    );
 }
 
 fn spawn_rotating_emitters(state: &mut State) {
@@ -216,6 +308,9 @@ fn spawn_rotating_emitters(state: &mut State) {
     let mut center = state.sim_dims / 2.0;
     center.y += center.y / 2.0;
     let offset = center / 8.0;
+
+    state.emitter_explosion_batch.clear();
+    state.emitter_smoke_batch.clear();
 
     for i in 0..3 {
         let rot = glam::Mat2::from_angle(angle + i as f32 * 90.0);
@@ -236,7 +331,7 @@ fn spawn_rotating_emitters(state: &mut State) {
                 state.rng.random_range(-mag..mag),
             );
 
-            state.particle_system.world.spawn((
+            state.emitter_explosion_batch.push((
                 ParticleType::Explosion,
                 Counter { counter },
                 Position { pos: rect_center },
@@ -244,7 +339,6 @@ fn spawn_rotating_emitters(state: &mut State) {
                 Rotation { rot: 0.0 },
                 DrawLayer { draw_layer: 0 },
                 Alpha { alpha: 1.0 },
-                AlphaVelocity { alpha_vel: -0.05 },
                 Velocity { vel },
                 Acceleration {
                     acc: Vec2::new(0.0, 0.1),
@@ -266,7 +360,7 @@ fn spawn_rotating_emitters(state: &mut State) {
             );
 
             let spin_mag = 2.0;
-            state.particle_system.world.spawn((
+            state.emitter_smoke_batch.push((
                 ParticleType::Smoke,
                 Counter { counter },
                 Position { pos: rect_center },
@@ -288,4 +382,21 @@ fn spawn_rotating_emitters(state: &mut State) {
             ));
         }
     }
+
+    flush_batch(
+        &mut state.particle_system,
+        &mut state.emitter_explosion_batch,
+    );
+    flush_batch(&mut state.particle_system, &mut state.emitter_smoke_batch);
+}
+
+fn flush_batch<B>(particle_system: &mut ParticleSystem<ParticleType>, batch: &mut Vec<B>)
+where
+    B: hecs::Bundle + 'static,
+{
+    if batch.is_empty() {
+        return;
+    }
+
+    particle_system.spawn_batch(batch.drain(..));
 }

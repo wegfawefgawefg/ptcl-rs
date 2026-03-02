@@ -101,6 +101,13 @@ where
             .reserve::<(T, Counter, Position, Size, Rotation, DrawLayer, Alpha)>(additional);
     }
 
+    pub fn reserve_bundle<B>(&mut self, additional: u32)
+    where
+        B: hecs::Bundle + 'static,
+    {
+        self.world.reserve::<B>(additional);
+    }
+
     pub fn new_particle(
         &mut self,
         particle_type: T,
@@ -117,6 +124,14 @@ where
             DrawLayer { draw_layer: 0 },
             Alpha { alpha: 1.0 },
         ))
+    }
+
+    pub fn spawn_batch<B, I>(&mut self, iter: I)
+    where
+        B: hecs::Bundle + 'static,
+        I: IntoIterator<Item = B>,
+    {
+        self.world.spawn_batch(iter).for_each(drop);
     }
 
     pub fn add_draw_layer(&mut self, entity: hecs::Entity, draw_layer: u32) {
@@ -205,9 +220,10 @@ where
             }
         }
 
-        for entity in self.expired_entities.drain(..) {
+        for entity in self.expired_entities.iter().copied() {
             let _ = self.world.despawn(entity);
         }
+        self.expired_entities.clear();
 
         for (pos, vel, acc) in
             self.world

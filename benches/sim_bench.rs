@@ -16,6 +16,18 @@ enum BenchType {
 
 impl ParticleTypeTrait for BenchType {}
 
+type BurstBundle = (
+    BenchType,
+    Counter,
+    Position,
+    Size,
+    Rotation,
+    DrawLayer,
+    Alpha,
+    Velocity,
+    Acceleration,
+);
+
 fn seed_steady_system(count: u32) -> ParticleSystem<BenchType> {
     let mut ps = ParticleSystem::new();
     ps.reserve_particles(count);
@@ -121,6 +133,33 @@ fn seed_burst_system() -> ParticleSystem<BenchType> {
     ps
 }
 
+fn build_burst_bundles(count: u32) -> Vec<BurstBundle> {
+    let mut bundles = Vec::with_capacity(count as usize);
+    for i in 0..count {
+        let pos = Vec2::new((i % 1024) as f32, ((i / 1024) % 1024) as f32);
+        bundles.push((
+            BenchType::Burst,
+            Counter {
+                counter: 3 + (i % 4),
+            },
+            Position { pos },
+            Size {
+                size: Vec2::splat(4.0),
+            },
+            Rotation { rot: 0.0 },
+            DrawLayer { draw_layer: 0 },
+            Alpha { alpha: 1.0 },
+            Velocity {
+                vel: Vec2::new(0.1, -0.08),
+            },
+            Acceleration {
+                acc: Vec2::new(0.0, 0.001),
+            },
+        ));
+    }
+    bundles
+}
+
 fn bench_step_steady_10k(c: &mut Criterion) {
     c.bench_function("step_steady_10k", |b| {
         let mut ps = seed_steady_system(10_000);
@@ -156,10 +195,44 @@ fn bench_burst_100k_lifecycle(c: &mut Criterion) {
     });
 }
 
+fn bench_spawn_50k_single(c: &mut Criterion) {
+    c.bench_function("spawn_50k_single", |b| {
+        b.iter_batched(
+            || build_burst_bundles(50_000),
+            |bundles| {
+                let mut ps = ParticleSystem::<BenchType>::new();
+                ps.reserve_bundle::<BurstBundle>(bundles.len() as u32);
+                for bundle in bundles {
+                    ps.world.spawn(bundle);
+                }
+                black_box(ps.world.len());
+            },
+            BatchSize::SmallInput,
+        );
+    });
+}
+
+fn bench_spawn_50k_batch(c: &mut Criterion) {
+    c.bench_function("spawn_50k_batch", |b| {
+        b.iter_batched(
+            || build_burst_bundles(50_000),
+            |bundles| {
+                let mut ps = ParticleSystem::<BenchType>::new();
+                ps.reserve_bundle::<BurstBundle>(bundles.len() as u32);
+                ps.spawn_batch(bundles);
+                black_box(ps.world.len());
+            },
+            BatchSize::SmallInput,
+        );
+    });
+}
+
 criterion_group!(
     benches,
     bench_step_steady_10k,
     bench_step_steady_50k,
-    bench_burst_100k_lifecycle
+    bench_burst_100k_lifecycle,
+    bench_spawn_50k_single,
+    bench_spawn_50k_batch
 );
 criterion_main!(benches);

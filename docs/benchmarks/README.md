@@ -13,6 +13,8 @@ cargo bench --bench sim_bench
 - `step_steady_10k`
 - `step_steady_50k`
 - `burst_100k_lifecycle`
+- `spawn_50k_single`
+- `spawn_50k_batch`
 
 ## Notes
 
