@@ -37,6 +37,7 @@ After running benchmarks, copy key means and confidence intervals into a dated f
 - `2026-03-02-lane-split-results.md`
 - `2026-03-02-lane-split-spawn-specialized-results.md`
 - `2026-03-02-experiment-01-compaction-vs-swap-remove.md`
+- `2026-03-02-experiment-02-ballistic-soa.md`
 - `optimization-experiment-log.md`
 
 Include:
