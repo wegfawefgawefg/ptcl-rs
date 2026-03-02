@@ -1,8 +1,6 @@
 use glam::Vec2;
 use hecs::World;
 
-//////////////// COMPONENTS ////////////////
-
 pub struct Counter {
     pub counter: u32,
 }
@@ -11,7 +9,6 @@ pub struct DrawLayer {
     pub draw_layer: u32,
 }
 
-//////////// position
 pub struct Position {
     pub pos: Vec2,
 }
@@ -24,7 +21,6 @@ pub struct Acceleration {
     pub acc: Vec2,
 }
 
-//////////// size
 pub struct Size {
     pub size: Vec2,
 }
@@ -37,7 +33,6 @@ pub struct SizeAcceleration {
     pub size_acc: f32,
 }
 
-//////////// rotation
 pub struct Rotation {
     pub rot: f32,
 }
@@ -50,7 +45,6 @@ pub struct RotationAcceleration {
     pub rot_acc: f32,
 }
 
-//////////// alpha
 pub struct Alpha {
     pub alpha: f32,
 }
@@ -63,7 +57,6 @@ pub struct AlphaAcceleration {
     pub alpha_acc: f32,
 }
 
-//////////// spline
 pub struct Spline {
     pub t: f32,
     pub strength: f32,
@@ -80,44 +73,43 @@ pub struct SplineAcceleration {
     pub tacc: f32,
 }
 
-///////////////////    MAGIC       ////////////////////
 pub trait ParticleTypeTrait: Sync {}
-
-pub struct ParticleTypeComponent<T: ParticleTypeTrait> {
-    pub particle_type: T,
-}
-
-//////////////////// PARTICLE SYSTEM ////////////////////
 
 pub struct ParticleSystem<T>
 where
     T: ParticleTypeTrait + Send + Sync + 'static,
 {
     pub world: hecs::World,
+    expired_entities: Vec<hecs::Entity>,
     _marker: std::marker::PhantomData<T>,
 }
 
 impl<T> ParticleSystem<T>
 where
-    T: ParticleTypeTrait + 'static + std::marker::Send,
+    T: ParticleTypeTrait + Send + Sync + 'static,
 {
     pub fn new() -> Self {
         Self {
             world: World::new(),
+            expired_entities: Vec::new(),
             _marker: std::marker::PhantomData,
         }
+    }
+
+    pub fn reserve_particles(&mut self, additional: u32) {
+        self.world
+            .reserve::<(T, Counter, Position, Size, Rotation, DrawLayer, Alpha)>(additional);
     }
 
     pub fn new_particle(
         &mut self,
         particle_type: T,
         counter: u32,
-
         pos: Vec2,
         size: Vec2,
     ) -> hecs::Entity {
         self.world.spawn((
-            particle_type, // Directly store the user-defined type enum
+            particle_type,
             Counter { counter },
             Position { pos },
             Size { size },
@@ -204,93 +196,101 @@ where
     }
 
     pub fn step(&mut self) {
-        let mut expired_particles = vec![];
-        for (entity, counter) in self.world.query_mut::<(hecs::Entity, &Counter)>() {
+        self.expired_entities.clear();
+        for (entity, counter) in self.world.query_mut::<(hecs::Entity, &mut Counter)>() {
             if counter.counter == 0 {
-                expired_particles.push(entity);
-            }
-        }
-
-        for entity in expired_particles {
-            self.world.despawn(entity).unwrap();
-        }
-
-        // counter
-        for counter in self.world.query_mut::<&mut Counter>() {
-            if counter.counter > 0 {
+                self.expired_entities.push(entity);
+            } else {
                 counter.counter -= 1;
             }
         }
 
-        // pos
-        for (vel, acc) in self.world.query_mut::<(&mut Velocity, &Acceleration)>() {
-            vel.vel += acc.acc;
-        }
-        for (pos, vel) in self.world.query_mut::<(&mut Position, &Velocity)>() {
-            pos.pos += vel.vel;
+        for entity in self.expired_entities.drain(..) {
+            let _ = self.world.despawn(entity);
         }
 
-        // size
-        for (size_vel, size_acc) in self
-            .world
-            .query_mut::<(&mut SizeVelocity, &SizeAcceleration)>()
+        for (pos, vel, acc) in
+            self.world
+                .query_mut::<(&mut Position, Option<&mut Velocity>, Option<&Acceleration>)>()
         {
-            size_vel.size_vel += size_acc.size_acc;
-        }
-        for (size, size_vel) in self.world.query_mut::<(&mut Size, &SizeVelocity)>() {
-            size.size += size_vel.size_vel;
-            size.size = size.size.max(Vec2::ZERO);
+            if let Some(vel) = vel {
+                if let Some(acc) = acc {
+                    vel.vel += acc.acc;
+                }
+                pos.pos += vel.vel;
+            }
         }
 
-        // rotation
-        for (rot_vel, rot_acc) in self
-            .world
-            .query_mut::<(&mut RotationVelocity, &RotationAcceleration)>()
-        {
-            rot_vel.rot_vel += rot_acc.rot_acc;
-        }
-        for (rot, rot_vel) in self
-            .world
-            .query_mut::<(&mut Rotation, &RotationVelocity)>()
-        {
-            rot.rot += rot_vel.rot_vel;
-        }
-
-        // alpha
-        for (alpha_vel, alpha_acc) in self
-            .world
-            .query_mut::<(&mut AlphaVelocity, &AlphaAcceleration)>()
-        {
-            alpha_vel.alpha_vel += alpha_acc.alpha_acc;
-        }
-        for (alpha, alpha_vel) in self.world.query_mut::<(&mut Alpha, &AlphaVelocity)>() {
-            alpha.alpha += alpha_vel.alpha_vel;
-            alpha.alpha = alpha.alpha.min(1.0).max(0.0);
+        for (size, size_vel, size_acc) in self.world.query_mut::<(
+            &mut Size,
+            Option<&mut SizeVelocity>,
+            Option<&SizeAcceleration>,
+        )>() {
+            if let Some(size_vel) = size_vel {
+                if let Some(size_acc) = size_acc {
+                    size_vel.size_vel += size_acc.size_acc;
+                }
+                size.size += size_vel.size_vel;
+                size.size = size.size.max(Vec2::ZERO);
+            }
         }
 
-        // spline
-        for (tvel, tacc) in self
-            .world
-            .query_mut::<(&mut SplineVelocity, &SplineAcceleration)>()
-        {
-            tvel.tvel += tacc.tacc;
+        for (rot, rot_vel, rot_acc) in self.world.query_mut::<(
+            &mut Rotation,
+            Option<&mut RotationVelocity>,
+            Option<&RotationAcceleration>,
+        )>() {
+            if let Some(rot_vel) = rot_vel {
+                if let Some(rot_acc) = rot_acc {
+                    rot_vel.rot_vel += rot_acc.rot_acc;
+                }
+                rot.rot += rot_vel.rot_vel;
+            }
         }
 
-        for (pos, spline, tvel) in self
-            .world
-            .query_mut::<(&mut Position, &mut Spline, &SplineVelocity)>()
-        {
-            spline.t += tvel.tvel;
-            spline.t = spline.t.min(1.0).max(0.0);
+        for (alpha, alpha_vel, alpha_acc) in self.world.query_mut::<(
+            &mut Alpha,
+            Option<&mut AlphaVelocity>,
+            Option<&AlphaAcceleration>,
+        )>() {
+            if let Some(alpha_vel) = alpha_vel {
+                if let Some(alpha_acc) = alpha_acc {
+                    alpha_vel.alpha_vel += alpha_acc.alpha_acc;
+                }
+                alpha.alpha = (alpha.alpha + alpha_vel.alpha_vel).clamp(0.0, 1.0);
+            }
+        }
+
+        for (pos, spline, tvel, tacc) in self.world.query_mut::<(
+            &mut Position,
+            &mut Spline,
+            Option<&mut SplineVelocity>,
+            Option<&SplineAcceleration>,
+        )>() {
+            if let Some(tvel) = tvel {
+                if let Some(tacc) = tacc {
+                    tvel.tvel += tacc.tacc;
+                }
+                spline.t = (spline.t + tvel.tvel).clamp(0.0, 1.0);
+            }
+
             let new_pos =
                 calculate_bezier_point(spline.t, spline.point_1, spline.point_2, spline.point_3);
             if spline.strength == 1.0 {
                 pos.pos = new_pos;
             } else {
-                let delta = new_pos - pos.pos;
-                pos.pos += delta * spline.strength;
+                pos.pos += (new_pos - pos.pos) * spline.strength;
             }
         }
+    }
+}
+
+impl<T> Default for ParticleSystem<T>
+where
+    T: ParticleTypeTrait + Send + Sync + 'static,
+{
+    fn default() -> Self {
+        Self::new()
     }
 }
 

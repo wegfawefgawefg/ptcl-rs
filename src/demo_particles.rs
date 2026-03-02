@@ -1,6 +1,6 @@
 use glam::IVec2;
 
-use crate::particle_system::ParticleTypeTrait;
+use ptcl_rs::core::ParticleTypeTrait;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ParticleType {
@@ -16,7 +16,6 @@ pub struct SampleRegion {
     pub size: IVec2,
 }
 
-// global public
 const SMOKE: SampleRegion = SampleRegion {
     pos: IVec2 { x: 0, y: 269 },
     size: IVec2 { x: 65, y: 61 },
