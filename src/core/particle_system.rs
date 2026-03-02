@@ -181,30 +181,85 @@ fn step_core_particle<T>(particle: &mut ParticleCore<T>)
 where
     T: ParticleTypeTrait,
 {
-    if particle.has(HAS_VELOCITY) {
-        if particle.has(HAS_ACCELERATION) {
+    const FLAGS_LINEAR: u16 = HAS_VELOCITY | HAS_ACCELERATION;
+    const FLAGS_ALPHA_ONLY: u16 = HAS_ALPHA_VELOCITY;
+    const FLAGS_RICH_NO_ALPHA_ACC: u16 = HAS_VELOCITY
+        | HAS_ACCELERATION
+        | HAS_SIZE_VELOCITY
+        | HAS_SIZE_ACCELERATION
+        | HAS_ROTATION_VELOCITY
+        | HAS_ROTATION_ACCELERATION
+        | HAS_ALPHA_VELOCITY;
+    const FLAGS_RICH_WITH_ALPHA_ACC: u16 = FLAGS_RICH_NO_ALPHA_ACC | HAS_ALPHA_ACCELERATION;
+
+    match particle.flags {
+        FLAGS_LINEAR => {
+            particle.velocity += particle.acceleration;
+            particle.pos += particle.velocity;
+        }
+        FLAGS_ALPHA_ONLY => {
+            particle.alpha = (particle.alpha + particle.alpha_velocity).clamp(0.0, 1.0);
+        }
+        FLAGS_RICH_NO_ALPHA_ACC => {
+            particle.velocity += particle.acceleration;
+            particle.pos += particle.velocity;
+
+            particle.size_velocity += particle.size_acceleration;
+            particle.size += particle.size_velocity;
+            particle.size = particle.size.max(Vec2::ZERO);
+
+            particle.rotation_velocity += particle.rotation_acceleration;
+            particle.rotation += particle.rotation_velocity;
+
+            particle.alpha = (particle.alpha + particle.alpha_velocity).clamp(0.0, 1.0);
+        }
+        FLAGS_RICH_WITH_ALPHA_ACC => {
+            particle.velocity += particle.acceleration;
+            particle.pos += particle.velocity;
+
+            particle.size_velocity += particle.size_acceleration;
+            particle.size += particle.size_velocity;
+            particle.size = particle.size.max(Vec2::ZERO);
+
+            particle.rotation_velocity += particle.rotation_acceleration;
+            particle.rotation += particle.rotation_velocity;
+
+            particle.alpha_velocity += particle.alpha_acceleration;
+            particle.alpha = (particle.alpha + particle.alpha_velocity).clamp(0.0, 1.0);
+        }
+        flags => step_core_particle_generic(particle, flags),
+    }
+}
+
+#[inline(always)]
+fn step_core_particle_generic<T>(particle: &mut ParticleCore<T>, flags: u16)
+where
+    T: ParticleTypeTrait,
+{
+    if (flags & HAS_VELOCITY) != 0 {
+        if (flags & HAS_ACCELERATION) != 0 {
             particle.velocity += particle.acceleration;
         }
         particle.pos += particle.velocity;
     }
 
-    if particle.has(HAS_SIZE_VELOCITY) {
-        if particle.has(HAS_SIZE_ACCELERATION) {
+    if (flags & HAS_SIZE_VELOCITY) != 0 {
+        if (flags & HAS_SIZE_ACCELERATION) != 0 {
             particle.size_velocity += particle.size_acceleration;
         }
         particle.size += particle.size_velocity;
         particle.size = particle.size.max(Vec2::ZERO);
     }
 
-    if particle.has(HAS_ROTATION_VELOCITY) {
-        if particle.has(HAS_ROTATION_ACCELERATION) {
+    if (flags & HAS_ROTATION_VELOCITY) != 0 {
+        if (flags & HAS_ROTATION_ACCELERATION) != 0 {
             particle.rotation_velocity += particle.rotation_acceleration;
         }
         particle.rotation += particle.rotation_velocity;
     }
 
-    if particle.has(HAS_ALPHA_VELOCITY) {
-        if particle.has(HAS_ALPHA_ACCELERATION) {
+    if (flags & HAS_ALPHA_VELOCITY) != 0 {
+        if (flags & HAS_ALPHA_ACCELERATION) != 0 {
             particle.alpha_velocity += particle.alpha_acceleration;
         }
         particle.alpha = (particle.alpha + particle.alpha_velocity).clamp(0.0, 1.0);

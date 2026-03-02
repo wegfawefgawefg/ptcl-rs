@@ -12,8 +12,9 @@ enum BenchType {
 
 impl ParticleTypeTrait for BenchType {}
 
+const STEADY_COUNTER: u32 = 1_000_000_000;
+
 fn seed_steady_system(count: u32) -> ParticleSystem<BenchType> {
-    const STEADY_COUNTER: u32 = 1_000_000_000;
     let mut ps = ParticleSystem::new();
     ps.reserve_particles(count);
 
@@ -59,6 +60,45 @@ fn seed_steady_system(count: u32) -> ParticleSystem<BenchType> {
                 );
             }
         }
+    }
+
+    ps
+}
+
+fn seed_linear_system(count: u32) -> ParticleSystem<BenchType> {
+    let mut ps = ParticleSystem::new();
+    ps.reserve_particles(count);
+
+    for i in 0..count {
+        let base = Vec2::new((i % 512) as f32, ((i / 512) % 512) as f32);
+        ps.spawn(
+            ParticleSpawn::new(BenchType::Burst, STEADY_COUNTER, base, Vec2::splat(6.0))
+                .with_velocity(Vec2::new(0.05, -0.02))
+                .with_acceleration(Vec2::new(0.0, 0.0005)),
+        );
+    }
+
+    ps
+}
+
+fn seed_rich_system(count: u32) -> ParticleSystem<BenchType> {
+    let mut ps = ParticleSystem::new();
+    ps.reserve_particles(count);
+
+    for i in 0..count {
+        let base = Vec2::new((i % 512) as f32, ((i / 512) % 512) as f32);
+        let size = Vec2::splat(6.0 + (i % 8) as f32);
+        ps.spawn(
+            ParticleSpawn::new(BenchType::Smoke, STEADY_COUNTER, base, size)
+                .with_alpha(0.8)
+                .with_alpha_velocity(-0.0001)
+                .with_velocity(Vec2::new(0.02, -0.03))
+                .with_acceleration(Vec2::new(0.0, 0.0002))
+                .with_size_velocity(0.02)
+                .with_size_acceleration(-0.0001)
+                .with_rotation_velocity(0.15)
+                .with_rotation_acceleration(-0.0002),
+        );
     }
 
     ps
@@ -133,6 +173,26 @@ fn bench_step_steady_50k(c: &mut Criterion) {
     });
 }
 
+fn bench_step_linear_50k(c: &mut Criterion) {
+    c.bench_function("step_linear_50k", |b| {
+        let mut ps = seed_linear_system(50_000);
+        b.iter(|| {
+            ps.step();
+            black_box(ps.len());
+        });
+    });
+}
+
+fn bench_step_rich_50k(c: &mut Criterion) {
+    c.bench_function("step_rich_50k", |b| {
+        let mut ps = seed_rich_system(50_000);
+        b.iter(|| {
+            ps.step();
+            black_box(ps.len());
+        });
+    });
+}
+
 fn bench_burst_100k_lifecycle(c: &mut Criterion) {
     c.bench_function("burst_100k_lifecycle", |b| {
         b.iter_batched(
@@ -186,6 +246,8 @@ criterion_group!(
     bench_step_1k,
     bench_step_steady_10k,
     bench_step_steady_50k,
+    bench_step_linear_50k,
+    bench_step_rich_50k,
     bench_burst_100k_lifecycle,
     bench_spawn_50k_single,
     bench_spawn_50k_batch

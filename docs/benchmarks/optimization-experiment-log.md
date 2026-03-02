@@ -9,3 +9,4 @@ Track each optimization attempt and its measured impact.
 | 2026-03-02 | Lane split + spawn specialization | Added specialized lane batch spawns | Strong `spawn_50k_batch` gain, mixed others | See `2026-03-02-lane-split-spawn-specialized-results.md` |
 | 2026-03-02 | Experiment 01: compaction vs swap-remove | Compared death compaction strategies under corrected steady-state counters | `swap_remove` clearly better for update/lifecycle; compaction rejected | See `2026-03-02-experiment-01-compaction-vs-swap-remove.md` |
 | 2026-03-02 | Experiment 02: ballistic SoA layout | Replaced ballistic AoS lane with SoA columns | Regressed all scenarios, often heavily; rejected | See `2026-03-02-experiment-02-ballistic-soa.md` |
+| 2026-03-02 | Experiment 03: branch-minimized core step | Added flag-combo fast paths with generic fallback | Strong step/lifecycle gains, spawn neutral within noise; kept | See `2026-03-02-experiment-03-branch-minimization.md` |

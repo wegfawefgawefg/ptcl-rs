@@ -19,6 +19,8 @@ Primary scenarios:
 - `step_1k`
 - `step_steady_10k`
 - `step_steady_50k`
+- `step_linear_50k` (diagnostic)
+- `step_rich_50k` (diagnostic)
 - `burst_100k_lifecycle`
 - `spawn_50k_single`
 - `spawn_50k_batch`
@@ -45,9 +47,14 @@ Hardware context checks:
 6. SIMD-focused math path:
    - investigate `std::simd` for bulk math updates.
 
+## Progress Notes
+
+- Experiment 01 (`swap_remove` vs compaction): compaction rejected.
+- Experiment 02 (ballistic SoA lane): rejected.
+- Experiment 03 (branch-minimized core step): kept.
+
 ## Success Criteria
 
 - Measurable improvement in target scenarios with stable behavior.
 - No large regressions in small-count scenarios unless explicitly accepted.
 - Full record exists for each attempt in benchmark docs/log.
-

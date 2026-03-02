@@ -251,11 +251,6 @@ where
             flags,
         }
     }
-
-    #[inline(always)]
-    pub(crate) fn has(&self, mask: u16) -> bool {
-        (self.flags & mask) != 0
-    }
 }
 
 #[derive(Clone, Copy, Debug)]

@@ -14,6 +14,8 @@ cargo bench --bench sim_bench
 - `step_1k`
 - `step_steady_10k`
 - `step_steady_50k`
+- `step_linear_50k`
+- `step_rich_50k`
 - `burst_100k_lifecycle`
 - `spawn_50k_single`
 - `spawn_50k_batch`
@@ -38,6 +40,7 @@ After running benchmarks, copy key means and confidence intervals into a dated f
 - `2026-03-02-lane-split-spawn-specialized-results.md`
 - `2026-03-02-experiment-01-compaction-vs-swap-remove.md`
 - `2026-03-02-experiment-02-ballistic-soa.md`
+- `2026-03-02-experiment-03-branch-minimization.md`
 - `optimization-experiment-log.md`
 
 Include:
