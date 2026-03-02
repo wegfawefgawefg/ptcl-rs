@@ -52,6 +52,8 @@ Hardware context checks:
 - Experiment 01 (`swap_remove` vs compaction): compaction rejected.
 - Experiment 02 (ballistic SoA lane): rejected.
 - Experiment 03 (branch-minimized core step): kept.
+- Experiment 04 (thresholded parallel step): rejected.
+- Experiment 05 (linear pair SIMD step): rejected.
 
 ## Success Criteria
 

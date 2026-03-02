@@ -41,6 +41,8 @@ After running benchmarks, copy key means and confidence intervals into a dated f
 - `2026-03-02-experiment-01-compaction-vs-swap-remove.md`
 - `2026-03-02-experiment-02-ballistic-soa.md`
 - `2026-03-02-experiment-03-branch-minimization.md`
+- `2026-03-02-experiment-04-thresholded-parallel-step.md`
+- `2026-03-02-experiment-05-linear-pair-simd.md`
 - `optimization-experiment-log.md`
 
 Include:
