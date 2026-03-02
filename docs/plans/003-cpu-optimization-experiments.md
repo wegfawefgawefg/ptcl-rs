@@ -54,6 +54,7 @@ Hardware context checks:
 - Experiment 03 (branch-minimized core step): kept.
 - Experiment 04 (thresholded parallel step): rejected.
 - Experiment 05 (linear pair SIMD step): rejected.
+- Profiling pass (callgrind): spline path and bezier math are dominant hotspots.
 
 ## Success Criteria
 
